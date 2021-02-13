@@ -8,6 +8,7 @@ def evaluate_program(ast):
         ast: json FOPPL program
     Returns: sample from the prior of ast
     """
+    # Algorithm 1 goes here?
     return None
 
 
