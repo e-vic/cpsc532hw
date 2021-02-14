@@ -51,14 +51,55 @@ def append(*vals):
     value = vals[1]
     return torch.cat(vec,value)
 
-def let(vals):
-    binding = vals[0]
-    v = binding[0] # will be a string?
-    e1 = binding[1] # will be a value?
-    e2 = vals[1] # will be a string representing an expression?
+def let(vals): # not used
+    print('let is called')
+    v = vals[0] # will be a string?
+    print('binding name is: ',v)
+    e1 = vals[1] # will be a value?
+    e2 = vals[2] # will be a string representing an expression?
 
     v_index = e2.index(v)
     e2[v_index] = e1
     return e2
 
+def primitif(*vals):
+    print('if called')
+    logical = vals[0]
+    true_value = vals[1]
+    false_value = vals[2]
 
+    print('logical type:',str(type(logical)))
+
+    if logical == True:
+        return true_value
+    else:
+        return false_value
+
+def leq(*vals):
+    if vals[0] < vals[1]:
+        return True
+    else:
+        return False
+
+def geq(*vals):
+    if vals[0] > vals[1]:
+        return True
+    else:
+        return False
+
+def nested_search(key,val,exp): # this is my let function actually
+    length = len(exp)
+    if type(exp) is list:
+        for i in range(length):
+            if type(exp[i]) is list:
+                print('type is list')
+                nested_search(key,val,exp[i])
+            else: 
+                print('checking for key')
+                print(exp[i])
+                if exp[i] == key:
+                    print('key found')
+                    exp[i] = val
+    return exp
+
+            
