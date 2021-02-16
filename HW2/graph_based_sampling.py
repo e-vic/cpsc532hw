@@ -29,7 +29,7 @@ env = {'normal': dist.Normal,
        '>': geq,
        'let': nested_search,
        'observe*': observeS,
-       'discrete': dist.Categorical,
+       'discrete': discrete,
        'mat-transpose': transpose,
        'mat-tanh': torch.tanh,
        'mat-add': torch.add,
@@ -41,9 +41,10 @@ def deterministic_eval(exp):
     "Evaluation function for the deterministic target language of the graph based representation."
     if type(exp) is list:
         op = exp[0]
-        print('in det eval, op is: ',str(op))
+        # print('in det eval, op is: ',str(op))
         args = exp[1:]
-        print('args are: ',str(args))
+        # print('args are: ',str(args))
+        # print('type of args is: ',str(type(args)))
         # print('type of args is: ',str(type(args)))
         # print('return value is: ',str(env[op](*map(deterministic_eval, args))))
         if op=='hash-map':
@@ -91,6 +92,8 @@ def sample_from_joint(graph):
             new_P = P[var]
             for key_name in current_keys:
                 # print('Updating with prev. random var values')
+                # print('keyname is: ',str(key_name))
+                # print('key value is: ',str(var_samples[key_name]))
                 # new_P = ['let', key_name, var_samples[key_name], new_P]
                 new_P = nested_search(key_name,float(var_samples[key_name]), new_P)
                 # print('new statement is: ',str(new_P))
@@ -109,18 +112,15 @@ def sample_from_joint(graph):
     # print('Samples are: ',str(var_samples))
 
     out_key = graph[2]
-    for key_name in current_keys:
-        out_key = nested_search(key_name,float(var_samples[key_name]), out_key)
-    return deterministic_eval(out_key)
-    
-    # if graph[2][0] == 'vector':
-    #     out_key = graph[2][1:]
-    #     print('outkey is: ',str(out_key))
-    #     return [var_samples[key] for key in out_key]
-    # else:
-    #     out_key = graph[2]
-    #     print('outkey is: ',str(out_key))
-    #     return var_samples[out_key]
+    if graph[2][0] == 'vector':
+        for key_name in current_keys:
+            out_key = nested_search(key_name,float(var_samples[key_name]), out_key)
+        print('outkey is: ',str(out_key))
+        return  deterministic_eval(out_key)
+    else:
+        out_key = graph[2]
+        print('outkey is: ',str(out_key))
+        return var_samples[out_key]
     
     
 

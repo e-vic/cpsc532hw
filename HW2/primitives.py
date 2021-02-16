@@ -1,9 +1,10 @@
 import torch
+import torch.distributions as dist
 
 # dist_env = {'normal': dist.Normal}
 
 def vector(*vals):
-    print('vector is called')
+    # print('vector is called')
     # print('values are: ',str(vals))
     if issubclass(type(vals[0]),torch.distributions.distribution.Distribution):
         output = [vals[i] for i in range(len(vals))]
@@ -23,12 +24,13 @@ def vector(*vals):
             return output
         else:
             output = [vals[i] for i in range(len(vals))]
+            print(torch.Tensor(output).resize_((len(output),1)))
             return torch.Tensor(output).resize_((len(output),1))
         # print(type(output[0]))
         
 
 def put(*vals):
-    print('put is called')
+    # print('put is called')
     vec = vals[0]
     # print('vec type is: ',str(type(vec)))
     if isinstance(vec,dict):
@@ -42,12 +44,12 @@ def put(*vals):
     return vec
 
 def sampleS(dist):
-    print('sample* is called')
+    # print('sample* is called')
     # takes in distribution type variable
     return dist.sample()
 
 def hashmap(*vals):
-    print('hashmap is called')
+    # print('hashmap is called')
     # print('input is: ',str(vals))
     # keys = [vals[i][0] for i in range(len(vals))]
     # values = [vals[i][1:] for i in range(len(vals))]
@@ -58,7 +60,7 @@ def hashmap(*vals):
 
 
 def get(*vals):
-    print('get is called')
+    # print('get is called')
     obj = vals[0]
     index = vals[1]
     
@@ -85,7 +87,7 @@ def let(vals): # not used
     return e2
 
 def primitif(*vals):
-    print('if called')
+    # print('if called')
     logical = vals[0]
     true_value = vals[1]
     false_value = vals[2]
@@ -110,7 +112,7 @@ def geq(*vals):
         return False
 
 def nested_search(key,val,exp): # this is my let function actually
-    print('let/nested search is called')
+    # print('let/nested search is called')
     length = len(exp)
     if type(exp) is list:
         for i in range(length):
@@ -126,10 +128,13 @@ def nested_search(key,val,exp): # this is my let function actually
     return exp
 
 def observeS(*vals):
+    # print('observe is called')
+    # print('vals are: ',str(vals))
     distribution = vals[0]
     rand_var = vals[1]
-
-    return torch.exp(distribution.log_prob(rand_var))
+    output = torch.exp(distribution.log_prob(rand_var))
+    # print('output is: ',str(output))
+    return output
 
 def sort_variables(V_ordered,V_parent,A):
     V_ordered = [] + V_parent
@@ -142,7 +147,7 @@ def sort_variables(V_ordered,V_parent,A):
     return V_ordered
 
 def transpose(*vals):
-    print('transpose is called')
+    # print('transpose is called')
     # print('vals are: ',str(vals))
     if len(vals) == 3 and isinstance(vals[1],int):
         return torch.transpose(vals)
@@ -151,14 +156,14 @@ def transpose(*vals):
         return torch.transpose(vals[0],0,1)
 
 def repmat(*vals):
-    print('repmat is called')
+    # print('repmat is called')
     # print('input is: ',str(vals))
     tensor = vals[0]
     reps = tuple([int(val) for val in vals[1:]])
     return tensor.repeat(reps)
 
 def matmul(*vals):
-    print('matmul is called')
+    # print('matmul is called')
     size1 = list(vals[0].shape)
     size2 = list(vals[1].shape)
 
@@ -169,3 +174,10 @@ def matmul(*vals):
             return torch.matmul(vals[0],torch.transpose(vals[1],0,1))
     else:
         return torch.matmul(vals[0],vals[1])
+
+def discrete(*vals):
+    # print('discrete is called')
+    print(vals)
+    length = max(list(vals[0].shape))
+    probs = vals[0].resize_((length))
+    return dist.Categorical(probs)
