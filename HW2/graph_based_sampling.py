@@ -1,6 +1,8 @@
 import torch
 import torch.distributions as dist
 import numpy as np
+import matplotlib.pyplot as plt
+import copy
 
 from daphne import daphne
 
@@ -62,13 +64,13 @@ def deterministic_eval(exp):
 def sample_from_joint(graph):
     "This function does ancestral sampling starting from the prior."
     # Need to order random vars based on parent-child structure given in A
-    V = graph[1]['V']
-    A = graph[1]['A']
-    P = graph[1]['P']
-    Y = graph[1]['Y']
+    V = copy.deepcopy(graph[1]['V'])
+    A = copy.deepcopy(graph[1]['A'])
+    P = copy.deepcopy(graph[1]['P'])
+    Y = copy.deepcopy(graph[1]['Y'])
 
     V_parent = []
-    children = list(set([list(A.values())[i][j] for i in range(len(list(A.values()))) for j in range(len(list(A.values())[i]))]))
+    children = copy.deepcopy(list(set([list(A.values())[i][j] for i in range(len(list(A.values()))) for j in range(len(list(A.values())[i]))])))
     # print('V is: ',str(V))
     # print('parent-child relationships: ',str(A))
     for var in V:
@@ -81,9 +83,7 @@ def sample_from_joint(graph):
     for i in range(len(ordered)):
         if ordered[i] not in V_ordered:
             V_ordered = V_ordered + [ordered[i]]      
-    
-    # print(V)
-    # print(P)
+
     var_samples = {}
     for var in V_ordered:
         if 'current_keys' in locals():
@@ -106,21 +106,27 @@ def sample_from_joint(graph):
             # print(var,' probability is: ',str(P[var]))
             var_samples[var] = deterministic_eval(P[var])
             # print(var,' value is: ',str(var_samples[var]))
-
+            # print('current keys initialised')
             current_keys = list(var_samples.keys())
         
     # print('Samples are: ',str(var_samples))
 
-    out_key = graph[2]
+    out_key = copy.deepcopy(graph[2])
+    # print(out_key)
     if graph[2][0] == 'vector':
         for key_name in current_keys:
             out_key = nested_search(key_name,float(var_samples[key_name]), out_key)
-        print('outkey is: ',str(out_key))
-        return  deterministic_eval(out_key)
+        # print('outkey is: ',str(out_key))
+        output = deterministic_eval(out_key)
+        # del current_keys, var_samples, out_key
+        return  output
     else:
         out_key = graph[2]
-        print('outkey is: ',str(out_key))
-        return var_samples[out_key]
+        output = [var_samples[out_key]]
+        # print('outkey is: ',str(out_key))
+        # print(var_samples[out_key])
+        del out_key, current_keys
+        return output
     
     
 
@@ -195,11 +201,64 @@ if __name__ == '__main__':
 
 
 
-
-    for i in range(1,5):
+    output = {'1':[],'2':[],'3':[],'4':[]}
+    for i in range(3,4):
         graph = daphne(['graph','-i','../HW2/programs/{}.daphne'.format(i)])
-        print('graph is:',str(graph))
+        # print('graph is:',str(graph))
         print('\n\n\nSample of prior of program {}:'.format(i))
-        print(sample_from_joint(graph))    
+        sample0 = sample_from_joint(graph)
+        output[str(i)] = sample0
+
+        if max(np.shape(sample0)) == 1:
+            for j in range(1,10):
+                output[str(i)] = np.concatenate((output[str(i)],sample_from_joint(graph)),0)
+        else:
+            for j in range(1,1000):
+                graph_used = copy.deepcopy(graph)
+                # graph = daphne(['graph','-i','../HW2/programs/{}.daphne'.format(i)])
+                samplei = sample_from_joint(graph_used)
+                # print(samplei)
+                output[str(i)] = np.concatenate((output[str(i)],samplei),1)
+        # print(output[str(i)])  
+        # print(np.shape(output[str(i)]))  
+
+        # figures
+        if max(np.shape(sample0)) == 1:
+            fig, ax = plt.subplots()
+            ax.hist(output[str(i)])
+            plt.show()
+        elif max(np.shape(sample0)) == 2:
+            fig = plt.figure(figsize=(10,5))
+            grid = plt.GridSpec(1, 2, figure=fig, hspace=0.35, wspace=0.2)
+            ax0 = fig.add_subplot(grid[0,0])
+            ax1 = fig.add_subplot(grid[0,1])
+            
+            ax0.hist(output[str(i)][0,:])
+            ax1.hist(output[str(i)][1,:])
+            plt.show()
+        else:
+            figcols = 4
+            figrows = int(np.ceil(max(np.shape(sample0))/figcols))
+            fig = plt.figure(figsize=(10,2.5*figrows))
+            grid = plt.GridSpec(figrows, figcols, figure=fig, hspace=0.35, wspace=0.2)
+
+            axes = {}
+            k = 0
+            for n in range(figrows):
+                for m in range(figcols):
+                    axes[str(n)+str(m)] = fig.add_subplot(grid[n,m])
+                    k = k+1
+                    if k >= max(np.shape(sample0)):
+                        break
+
+            k = 0
+            for n in range(figrows):
+                for m in range(figcols):
+                    axes[str(n)+str(m)].hist(output[str(i)][k,:])
+                    k = k+1
+                    if k >= max(np.shape(sample0)):
+                        break
+
+            plt.show()
 
     

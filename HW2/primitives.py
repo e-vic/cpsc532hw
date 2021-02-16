@@ -24,7 +24,7 @@ def vector(*vals):
             return output
         else:
             output = [vals[i] for i in range(len(vals))]
-            print(torch.Tensor(output).resize_((len(output),1)))
+            # print(torch.Tensor(output).resize_((len(output),1)))
             return torch.Tensor(output).resize_((len(output),1))
         # print(type(output[0]))
         
@@ -177,7 +177,7 @@ def matmul(*vals):
 
 def discrete(*vals):
     # print('discrete is called')
-    print(vals)
+    # print(vals)
     length = max(list(vals[0].shape))
     probs = vals[0].resize_((length))
     return dist.Categorical(probs)
