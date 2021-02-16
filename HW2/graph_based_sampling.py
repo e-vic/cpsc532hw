@@ -202,12 +202,13 @@ if __name__ == '__main__':
 
 
     output = {'1':[],'2':[],'3':[],'4':[]}
-    for i in range(3,4):
+    for i in range(4,5):
         graph = daphne(['graph','-i','../HW2/programs/{}.daphne'.format(i)])
         # print('graph is:',str(graph))
         print('\n\n\nSample of prior of program {}:'.format(i))
         sample0 = sample_from_joint(graph)
-        output[str(i)] = sample0
+        shape = list(sample0.shape)
+        output[str(i)] = sample0.resize_((int(shape[0]*shape[1]),1))
 
         if max(np.shape(sample0)) == 1:
             for j in range(1,10):
@@ -217,8 +218,9 @@ if __name__ == '__main__':
                 graph_used = copy.deepcopy(graph)
                 # graph = daphne(['graph','-i','../HW2/programs/{}.daphne'.format(i)])
                 samplei = sample_from_joint(graph_used)
+                shape = list(samplei.shape)
                 # print(samplei)
-                output[str(i)] = np.concatenate((output[str(i)],samplei),1)
+                output[str(i)] = np.concatenate((output[str(i)],samplei.resize_((int(shape[0]*shape[1]),1))),1)
         # print(output[str(i)])  
         # print(np.shape(output[str(i)]))  
 
@@ -237,9 +239,9 @@ if __name__ == '__main__':
             ax1.hist(output[str(i)][1,:])
             plt.show()
         else:
-            figcols = 4
+            figcols = 7
             figrows = int(np.ceil(max(np.shape(sample0))/figcols))
-            fig = plt.figure(figsize=(10,2.5*figrows))
+            fig = plt.figure(figsize=(13,1.75*figrows))
             grid = plt.GridSpec(figrows, figcols, figure=fig, hspace=0.35, wspace=0.2)
 
             axes = {}
