@@ -43,7 +43,7 @@ def evaluate_program(ast):
     try: 
         l = copy.deepcopy(ast[1])
     except:
-        l = None
+        l = {}
 
 
     if type(e) is int or type(e) is float:
@@ -52,7 +52,10 @@ def evaluate_program(ast):
         return torch.tensor(float(e))
 
     if type(e) is str:
-        return l[e]
+        if e in list(l.keys()):
+            return l[e]
+        else:
+            return e
 
     else:
         if e[0] == 'sample' and issubclass(type(e[1]),torch.distributions.distribution.Distribution):
@@ -68,21 +71,33 @@ def evaluate_program(ast):
         elif e[0] == 'let':
             print('let block, come back to this')
 
-        # elif e[0] in list(env.keys()):
-        #     print('operation: ',str(e[0]))
-        #     print('arguments are: ',str(e[1:]))
-        #     return env[e[0]](*map(evaluate_program,[e[1:]]))
         else:
             c = [None]*len(e)
             for i in range(len(e)):
-                c[i] = evaluate_program([e[i],l])
-            if type(e[0]) is int or type(e[0]) is float:
-                return e
+                print('that c setting loop')
+                c[i] = evaluate_program([e[i]])
+                print('c is: ',str(c))
+            if type(e[0]) is int or type(e[0]) is float or (type(e[0]) is torch.tensor and list(e[0].shape)==[]):
+                return c
 
             elif e[0] in list(env.keys()):
-                return env[e[0]](*map(evaluate_program,[e[1:]]))
+                if e[0] == '+' or e[0] == '*' or e[0] == '/':
+                    print('e[0] is ',str(e[0]))
+                    print('e[1] is',str(e[1]))
+                    print('e[2] is',str(e[2]))
+                    return env[e[0]](evaluate_program([e[1]]),evaluate_program([e[2]]))
+                else:
+                    print('user defined functions')
+                    print('function is: ',str(e[0]))
+                    print('args are: ',str(e[1:]))
+                    # return env[e[0]](*map(evaluate_program,[e[1:]]))
+                    if len(c[1:])==1:
+                        return env[e[0]](c[1])
+                    else:
+                        print('c args are')
+                        print(c[1:])
+                        return env[e[0]](c[1:])
 
-            return c
 
 
     # return None
@@ -103,13 +118,13 @@ def run_deterministic_tests():
         ast = daphne(['desugar', '-i', '../HW2/programs/tests/deterministic/test_{}.daphne'.format(i)])
         print('ast is: ',str(ast))
         truth = load_truth('programs/tests/deterministic/test_{}.truth'.format(i))
-        ret, sig = evaluate_program(ast)
+        ret = evaluate_program(ast)
         try:
             assert(is_tol(ret, truth))
         except AssertionError:
             raise AssertionError('return value {} is not equal to truth {} for exp {}'.format(ret,truth,ast))
         
-        print('Test passed')
+        print('!Test ',str(i),' passed!')
         
     print('All deterministic tests passed')
     

@@ -4,8 +4,8 @@ import torch.distributions as dist
 # dist_env = {'normal': dist.Normal}
 
 def vector(*vals):
-    # print('vector is called')
-    # print('values are: ',str(vals))
+    print('vector is called')
+    print('values are: ',str(vals))
     if issubclass(type(vals[0]),torch.distributions.distribution.Distribution):
         output = [vals[i] for i in range(len(vals))]
         return output
