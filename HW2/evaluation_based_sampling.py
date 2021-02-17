@@ -35,54 +35,33 @@ env = {'normal': dist.Normal,
        'append': append,
        'sample': sampleS}
 
-def evaluate_program(ast):
+def evaluate_program(ast,l={}):
     """Evaluate a program as desugared by daphne, generate a sample from the prior
     Args:
         ast: json FOPPL program
     Returns: sample from the prior of ast
     """
     # Algorithm 6 goes here?
-    e = copy.deepcopy(ast[0])
-    print('expression is: ',str(e))
-    try: 
-        l = copy.deepcopy(ast[1])
-    except:
-        l = {}
+    print('ast is: ',str(ast))
+    # e = copy.deepcopy(ast[0])
+    # print('expression is: ',str(e))
+    # try: 
+    #     l = copy.deepcopy(ast[1])
+    # except:
+    #     l = {}
 
+    for e in ast:
+        print('e is: ',str(e))
+        if type(e) is int or type(e) is float:
+            print('operation: none, just a number')
+            print('number is: ',str(e))
+            return torch.tensor(float(e))
 
-    if type(e) is int or type(e) is float:
-        print('operation: none, just a number')
-        print('number is: ',str(e))
-        return torch.tensor(float(e))
-
-    if type(e) is str:
-        if e in list(l.keys()):
-            return l[e]
-        else:
-            return e
-
-    else:
-        if e[0] == 'sample' and issubclass(type(e[1]),torch.distributions.distribution.Distribution):
-            print('sampling')
-            print('distribution is: ',str(dist))
-            return sampleS(e[1])
-
-        elif e[0] == 'observe' and issubclass(type(e[1]),torch.distributions.distribution.Distribution):
-            return observeS(e[1:])
-
-        elif e[0] == 'if' and type(e[1]) is bool:
-            # not sure, come back to this
-            print('if block, need to write this still')
-
-        elif e[0] == 'let':
-            print('let block')
-            print('inputs are: ',str(e[1:]))
-            key = e[1:][0][0]
-            val = e[1:][0][1]
-            exp = e[1:][1]
-            let_out = nested_search(key,val,exp)
-            print('let output is: ',str(let_out))
-            return evaluate_program([let_out])
+        elif type(e) is str:
+            if e in list(l.keys()):
+                return l[e]
+            else:
+                return e
 
         elif e[0] == 'defn':
             name = e[1]
@@ -91,16 +70,39 @@ def evaluate_program(ast):
             env[name] = lambda *vars: evaluate_program(nested_search(inputs,vars,operation))
 
         else:
-            c = [None]*len(e)
-            for i in range(len(e)):
-                print('that c setting loop')
-                c[i] = evaluate_program([e[i]])
-                print('c is: ',str(c))
-            if type(e[0]) is int or type(e[0]) is float or (type(e[0]) is torch.tensor and list(e[0].shape)==[]):
-                return c
+            if e[0] == 'sample' and issubclass(type(e[1]),torch.distributions.distribution.Distribution):
+                print('sampling')
+                print('distribution is: ',str(dist))
+                return sampleS(e[1])
 
-            elif e[0] in list(env.keys()):
-                return env[e[0]](*c[1:])
+            elif e[0] == 'observe' and issubclass(type(e[1]),torch.distributions.distribution.Distribution):
+                return observeS(e[1:])
+
+            elif e[0] == 'if' and type(e[1]) is bool:
+                # not sure, come back to this
+                print('if block, need to write this still')
+
+            elif e[0] == 'let':
+                print('let block')
+                print('inputs are: ',str(e[1:]))
+                key = e[1:][0][0]
+                val = e[1:][0][1]
+                exp = e[1:][1]
+                let_out = nested_search(key,val,exp)
+                print('let output is: ',str(let_out))
+                return evaluate_program([let_out])
+
+            else:
+                c = [None]*len(e)
+                for i in range(len(e)):
+                    print('that c setting loop')
+                    c[i] = evaluate_program([e[i]])
+                    print('c is: ',str(c))
+                if type(e[0]) is int or type(e[0]) is float or (type(e[0]) is torch.tensor and list(e[0].shape)==[]):
+                    return c
+
+                elif e[0] in list(env.keys()):
+                    return env[e[0]](*c[1:])
 
 
 
@@ -143,7 +145,7 @@ def run_probabilistic_tests():
     num_samples=10
     max_p_value = 1e-4
     
-    for i in range(4,7):
+    for i in range(1,7):
         #note: this path should be with respect to the daphne path!        
         # ast = daphne(['desugar', '-i', '../CS532-HW2/programs/tests/probabilistic/test_{}.daphne'.format(i)])
         ast = daphne(['desugar', '-i', '../HW2/programs/tests/probabilistic/test_{}.daphne'.format(i)])
