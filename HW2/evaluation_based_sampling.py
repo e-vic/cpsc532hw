@@ -75,7 +75,20 @@ def evaluate_program(ast):
             print('if block, need to write this still')
 
         elif e[0] == 'let':
-            print('let block, come back to this')
+            print('let block')
+            print('inputs are: ',str(e[1:]))
+            key = e[1:][0][0]
+            val = e[1:][0][1]
+            exp = e[1:][1]
+            let_out = nested_search(key,val,exp)
+            print('let output is: ',str(let_out))
+            return evaluate_program([let_out])
+
+        elif e[0] == 'defn':
+            name = e[1]
+            inputs = e[2]
+            operation = e[3]
+            env[name] = lambda *vars: evaluate_program(nested_search(inputs,vars,operation))
 
         else:
             c = [None]*len(e)
@@ -130,7 +143,7 @@ def run_probabilistic_tests():
     num_samples=10
     max_p_value = 1e-4
     
-    for i in range(1,7):
+    for i in range(4,7):
         #note: this path should be with respect to the daphne path!        
         # ast = daphne(['desugar', '-i', '../CS532-HW2/programs/tests/probabilistic/test_{}.daphne'.format(i)])
         ast = daphne(['desugar', '-i', '../HW2/programs/tests/probabilistic/test_{}.daphne'.format(i)])
