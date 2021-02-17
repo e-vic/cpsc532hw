@@ -181,3 +181,6 @@ def discrete(*vals):
     length = max(list(vals[0].shape))
     probs = vals[0].resize_((length))
     return dist.Categorical(probs)
+
+def first(vals):
+    return vals[0]
