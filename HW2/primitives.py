@@ -44,7 +44,8 @@ def put(*vals):
     return vec
 
 def sampleS(dist):
-    # print('sample* is called')
+    print('sample* is called')
+    print('input to sample is: ',str(dist))
     # takes in distribution type variable
     return dist.sample()
 
@@ -66,6 +67,20 @@ def get(*vals):
     
     if isinstance(obj,dict):
         return obj[index]
+    else:
+        # print('index is: ',str(int(index)))
+        return obj[int(index)]
+
+def get_eval(*vals):
+    # print('get is called')
+    obj = vals[0]
+    index = vals[1]
+    
+    if isinstance(obj,dict):
+        if type(list(obj.keys())[0]) is str:
+            return obj[str(index)]
+        else:
+            return obj[float(index)]
     else:
         # print('index is: ',str(int(index)))
         return obj[int(index)]
@@ -184,3 +199,9 @@ def discrete(*vals):
 
 def first(vals):
     return vals[0]
+
+def last(vals):
+    return vals[-1]
+
+def append(*vals):
+    return torch.cat((vals[0],vals[1].resize_((1,1))),0)
