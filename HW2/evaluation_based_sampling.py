@@ -3,6 +3,7 @@ from tests import is_tol, run_prob_test,load_truth
 import torch
 import torch.distributions as dist
 from primitives import *
+import copy
 
 env = {'normal': dist.Normal,
        'sqrt': torch.sqrt,
@@ -36,27 +37,55 @@ def evaluate_program(ast):
         ast: json FOPPL program
     Returns: sample from the prior of ast
     """
-    # Algorithm 1 goes here?
-    e = ast[0]
-    try:
-        sigma = ast[1]
-    except:
-        sigma = None
+    # Algorithm 6 goes here?
+    e = copy.deepcopy(ast[0])
+    print('expression is: ',str(e))
     try: 
-        l = ast[2]
+        l = copy.deepcopy(ast[1])
     except:
         l = None
 
-    if e[0] in list(env.keys()):
-        return env[e[0]](e[1:])
+
+    if type(e) is int or type(e) is float:
+        print('operation: none, just a number')
+        print('number is: ',str(e))
+        return torch.tensor(float(e))
+
+    if type(e) is str:
+        return l[e]
+
     else:
-        c = [None]*len(e)
-        for i in range(len(e)):
-            c[i], sigma = evaluate_program([e[i],sigma,l])
-        return c
+        if e[0] == 'sample' and issubclass(type(e[1]),torch.distributions.distribution.Distribution):
+            return sampleS(e[1])
+
+        elif e[0] == 'observe' and issubclass(type(e[1]),torch.distributions.distribution.Distribution):
+            return observeS(e[1:])
+
+        elif e[0] == 'if' and type(e[1]) is bool:
+            # not sure, come back to this
+            print('if block, need to write this still')
+
+        elif e[0] == 'let':
+            print('let block, come back to this')
+
+        # elif e[0] in list(env.keys()):
+        #     print('operation: ',str(e[0]))
+        #     print('arguments are: ',str(e[1:]))
+        #     return env[e[0]](*map(evaluate_program,[e[1:]]))
+        else:
+            c = [None]*len(e)
+            for i in range(len(e)):
+                c[i] = evaluate_program([e[i],l])
+            if type(e[0]) is int or type(e[0]) is float:
+                return e
+
+            elif e[0] in list(env.keys()):
+                return env[e[0]](*map(evaluate_program,[e[1:]]))
+
+            return c
 
 
-    return None
+    # return None
 
 
 def get_stream(ast):
