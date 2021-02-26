@@ -8,7 +8,7 @@ from primitives import PRIMITIVES
 from collections.abc import Iterable
 
 
-def evaluate_program(ast):
+def evaluate_program(ast,prog_name='prior_sampling',prog_args=[]):
     """Evaluate a program as desugared by daphne, generate a sample from the prior
     Args:
         ast: json FOPPL program
@@ -46,6 +46,7 @@ def evaluate_program(ast):
             dist_expr, obs_expr = expr[1], expr[2]
             dist_obj, sigma = eval(dist_expr,sigma,scope)
             obs_value, sigma = eval(obs_expr,sigma,scope)
+            sigma['logW'] = sigma['logW'] + dist_obj.log_prob(obs_value)
             return obs_value, sigma
         else:
             proc_name = expr[0]
@@ -61,8 +62,20 @@ def evaluate_program(ast):
                 return eval(proc_expr, sigma, new_scope)
             else:
                 return PRIMITIVES[proc_name](*consts), sigma
+    if prog_name == 'prior_sampling':
+        return eval(ast[-1], {}, {})
+    elif prog_name == 'importance_sampling':
+        print('Importance Sampling')
+        L = prog_args
+        importance_out = []
+        for l in range(L):
+            r_l, sigma_l = eval(ast[-1],{'logW': 0},{})
+            importance_out.append([r_l,sigma_l['logW']])
 
-    return eval(ast[-1], {}, {})
+        return importance_out
+
+
+
 
 
 def is_const(expr, scope):
@@ -90,7 +103,7 @@ def run_deterministic_tests():
     
     for i in range(1,14):
         #note: this path should be with respect to the daphne path!
-        ast = daphne(['desugar', '-i', '../CS532-HW2/programs/tests/deterministic/test_{}.daphne'.format(i)])
+        ast = daphne(['desugar', '-i', '../HW3/fromJason/programs/tests/deterministic/test_{}.daphne'.format(i)])
         truth = load_truth('programs/tests/deterministic/test_{}.truth'.format(i))
         ret, sig = evaluate_program(ast)
         try:
@@ -112,7 +125,7 @@ def run_probabilistic_tests():
     
     for i in range(1,7):
         #note: this path should be with respect to the daphne path!        
-        ast = daphne(['desugar', '-i', '../CS532-HW2/programs/tests/probabilistic/test_{}.daphne'.format(i)])
+        ast = daphne(['desugar', '-i', '../HW3/fromJason/programs/tests/probabilistic/test_{}.daphne'.format(i)])
         truth = load_truth('programs/tests/probabilistic/test_{}.truth'.format(i))
         
         stream = get_stream(ast)
@@ -131,31 +144,41 @@ def print_tensor(tensor):
 
         
 if __name__ == '__main__':
-    run_deterministic_tests()
-    run_probabilistic_tests()
+    # run_deterministic_tests()
+    # run_probabilistic_tests()
 
     for i in range(1,5):
-        ast = daphne(['desugar', '-i', '../CS532-HW2/programs/{}.daphne'.format(i)])
+        print('Program ',str(i))
+        ast = daphne(['desugar', '-i', '../HW3/fromJason/programs/hw3_p{}.daphne'.format(i)])
 
-        samples, n = [], 1000
-        for j in range(n):
-            sample = evaluate_program(ast)[0]
-            samples.append(sample)
+        # samples, n = [], 1
+        # for j in range(n):
+        #     sample = evaluate_program(ast)[0]
+        #     samples.append(sample)
+        
+        prog_name = 'importance_sampling'
+        L = 10000
+        samples = evaluate_program(ast,prog_name,L)
 
-        print(f'\nExpectation of return values for program {i}:')
-        if type(samples[0]) is list:
-            expectation = [None]*len(samples[0])
-            for j in range(n):
-                for k in range(len(expectation)):
-                    if expectation[k] is None:
-                        expectation[k] = [samples[j][k]]
-                    else:
-                        expectation[k].append(samples[j][k])
-            for k in range(len(expectation)):
-                print_tensor(sum(expectation[k])/n)
+        if prog_name == 'importance_sampling':
+            W_sum = sum([val[1] for val in samples])
+            expectation = sum([val[0]*val[1] for val in samples])/W_sum
+            print('expectation after ',str(L), 'samples is: ',str(expectation))
         else:
-            expectation = sum(samples)/n
-            print_tensor(expectation)
+            print(f'\nExpectation of return values for program {i}:')
+            if type(samples[0]) is list:
+                expectation = [None]*len(samples[0])
+                for j in range(L):
+                    for k in range(len(expectation)):
+                        if expectation[k] is None:
+                            expectation[k] = [samples[j][k]]
+                        else:
+                            expectation[k].append(samples[j][k])
+                for k in range(len(expectation)):
+                    print_tensor(sum(expectation[k])/L)
+            else:
+                expectation = sum(samples)/L
+                print_tensor(expectation)
 
 """
 Plot Code

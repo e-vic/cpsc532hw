@@ -92,6 +92,14 @@ def repmat(tensor, size1, size2):
     return tensor.repeat(size1, size2)
 def matmul(t1, t2):
     return t1.matmul(t2)
+def gamma(conc, rate):
+    return torch.distributions.Gamma(conc,rate)
+def dirichlet(conc):
+    return torch.distributions.Dirichlet(conc)
+def flip(val):
+    return torch.distributions.Bernoulli(val)
+
+    
 
 PRIMITIVES = {
     "+": add,
@@ -126,5 +134,10 @@ PRIMITIVES = {
     "mat-tanh": tanh,
     "mat-repmat": repmat,
     "mat-mul": matmul,
-    "if": lambda cond, v1, v2: v1 if cond else v2 # for graph based sampling
+    "if": lambda cond, v1, v2: v1 if cond else v2, # for graph based sampling
+    "gamma": gamma,
+    "dirichlet": dirichlet,
+    "flip": flip,
+    "and": lambda b1, b2: b1 and b2,
+    "or": lambda b1, b2: b1 or b2
 }
