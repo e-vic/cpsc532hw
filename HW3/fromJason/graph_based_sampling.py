@@ -234,9 +234,9 @@ if __name__ == '__main__':
     # run_deterministic_tests()
     # run_probabilistic_tests()
     prog_name = 'MHinGibbs'
-    S = 10
+    S = 10000
 
-    for i in range(1,3):
+    for i in range(1,5):
         print('Program ',str(i))
         graph = daphne(['graph','-i','../HW3/fromJason/programs/hw3_p{}.daphne'.format(i)])
         # print('graph is: ',str(graph))

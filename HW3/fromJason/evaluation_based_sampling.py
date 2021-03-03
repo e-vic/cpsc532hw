@@ -148,7 +148,7 @@ if __name__ == '__main__':
     # run_deterministic_tests()
     # run_probabilistic_tests()
 
-    for i in range(1,3):
+    for i in range(1,5):
         print('Program ',str(i))
         ast = daphne(['desugar', '-i', '../HW3/fromJason/programs/hw3_p{}.daphne'.format(i)])
 
@@ -158,12 +158,12 @@ if __name__ == '__main__':
         #     samples.append(sample)
         
         prog_name = 'importance_sampling'
-        L = 2
+        L = 10000
         tic = time.perf_counter()
         samples = evaluate_program(ast,prog_name,L)
         toc = time.perf_counter()
         print('elapsed time: ',str(toc-tic))
-        print('samples are: ', str(samples))
+        # print('samples are: ', str(samples))
 
         if prog_name == 'importance_sampling':
             W_sum = sum([torch.exp(val[1]) for val in samples])
