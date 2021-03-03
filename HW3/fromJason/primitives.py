@@ -98,7 +98,17 @@ def dirichlet(conc):
     return torch.distributions.Dirichlet(conc)
 def flip(val):
     return torch.distributions.Bernoulli(val)
-
+def observeS(*vals):
+    # print('observe is called')
+    # print('vals are: ',str(vals))
+    distribution = vals[0]
+    rand_var = vals[1]
+    output = distribution.log_prob(rand_var)
+    # print('output is: ',str(output))
+    return output
+def sampleS(dist):
+    # takes in distribution type variable
+    return dist.sample()
     
 
 PRIMITIVES = {
@@ -139,5 +149,7 @@ PRIMITIVES = {
     "dirichlet": dirichlet,
     "flip": flip,
     "and": lambda b1, b2: b1 and b2,
-    "or": lambda b1, b2: b1 or b2
+    "or": lambda b1, b2: b1 or b2,
+    "observeS": observeS,
+    "sampleS": sampleS
 }

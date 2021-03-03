@@ -78,8 +78,69 @@ def sample_from_joint(graph):
             trace[node] = obs[node]
 
     expr = plugin_parent_values(expr, trace)
-    return deterministic_eval(expr), sigma
+    return deterministic_eval(expr), sigma, trace
 
+def nested_search(key,val,exp): 
+    length = len(exp)
+    if type(exp) is list:
+        for i in range(length):
+            if type(exp[i]) is list:
+                nested_search(key,val,exp[i])
+            else: 
+                if exp[i] == key:
+                    exp[i] = val
+    return exp
+
+def accept(x,x_sample,X0,Q):
+    q = Q[x] # q is the same for both X and X'
+    q_expr0 = ["observeS",q[1],X0[x]]
+    q_expr1 = ["observeS",q[1],x_sample]
+    log_alpha = deterministic_eval(q_expr0) - deterministic_eval(q_expr1)
+    # print('log alpha is: ',str(log_alpha))
+
+    return torch.exp(log_alpha)
+
+def gibbs_step(X,Q):
+    # X is the map from variables to their values.. so it's a dict type?
+    for x in list(Q.keys()):
+        q = Q[x]
+        q = plugin_parent_values(q, X)
+        x_sample = deterministic_eval(q)
+
+        alpha = accept(x,x_sample,X,Q)
+        u = torch.distributions.Uniform(0,1).sample()
+        if bool(u < alpha):
+            X[x] = x_sample
+
+        return X
+
+
+
+def gibbs(graph,S):
+    procs, model, expr = graph[0], graph[1], graph[2]
+    nodes, edges, links, obs = model['V'], model['A'], model['P'], model['Y']
+    # print('links are: ',str(links))
+
+    full_output = sample_from_joint(graph)
+    X0 = full_output[2]
+    # print('initial proposal is: ',str(X0))
+
+    Q = { k : links[k] for k in set(links) - set(obs) }
+    X = [{k : X0[k] for k in list(Q.keys())}]
+    X_out = {k : [X[0][k]] for k in list(X[0].keys())}
+
+    for q_key in list(Q.keys()):
+        q = Q[q_key]
+        q = nested_search('sample*','sampleS',q)
+        Q[q_key] = plugin_parent_values(q,obs)
+    print('Q is: ',str(Q) )
+
+    for s in range(1,S+1):
+        X.append(gibbs_step({**X[s-1]},Q))
+        for X_key in list(X[s].keys()):
+            X_out[X_key].append(X[s][X_key])
+    
+    return X_out
 
 def get_stream(graph):
     """Return a stream of prior samples
@@ -141,27 +202,50 @@ def print_tensor(tensor):
 if __name__ == '__main__':
     
 
-    run_deterministic_tests()
-    run_probabilistic_tests()
+    # run_deterministic_tests()
+    # run_probabilistic_tests()
+    prog_name = 'MHinGibbs'
+    S = 1000
 
-    for i in range(1,5):
-        graph = daphne(['graph','-i','../CS532-HW2/programs/{}.daphne'.format(i)])
-        samples, n = [], 1000
-        for j in range(n):
-            sample = sample_from_joint(graph)[0]
-            samples.append(sample)
+    for i in range(1,2):
+        print('Program ',str(i))
+        graph = daphne(['graph','-i','../HW3/fromJason/programs/hw3_p{}.daphne'.format(i)])
+        # print('graph is: ',str(graph))
 
-        print(f'\nExpectation of return values for program {i}:')
-        if type(samples[0]) is list:
-            expectation = [None]*len(samples[0])
-            for j in range(n):
-                for k in range(len(expectation)):
-                    if expectation[k] is None:
-                        expectation[k] = [samples[j][k]]
-                    else:
-                        expectation[k].append(samples[j][k])
-            for k in range(len(expectation)):
-                print_tensor(sum(expectation[k])/n)
+        if prog_name == 'MHinGibbs':
+            samples = gibbs(graph,S)
+
         else:
-            expectation = sum(samples)/n
-            print_tensor(expectation)
+            samples, n = [], S
+            for j in range(n):
+                full_output = sample_from_joint(graph)
+                sample = full_output[0]
+                samples.append(sample)
+                # print('trace is: ',str(full_output[2]))
+
+
+        # print('output is: ',str(samples))
+
+        if prog_name == 'MHinGibbs':
+            expectation = []
+            variance = []
+            for key in list(samples.keys()):
+                expectation.append(np.mean(samples[key]))
+                variance.append(np.var(samples[key]))
+            print('expectation after ',str(S),' samples is: ',str(expectation))
+            print('variance after ',str(S),' samples is: ',str(variance))
+        else:
+            print(f'\nExpectation of return values for program {i}:')
+            if type(samples[0]) is list:
+                expectation = [None]*len(samples[0])
+                for j in range(n):
+                    for k in range(len(expectation)):
+                        if expectation[k] is None:
+                            expectation[k] = [samples[j][k]]
+                        else:
+                            expectation[k].append(samples[j][k])
+                for k in range(len(expectation)):
+                    print_tensor(sum(expectation[k])/n)
+            else:
+                expectation = sum(samples)/n
+                print_tensor(expectation)

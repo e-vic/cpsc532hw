@@ -159,11 +159,16 @@ if __name__ == '__main__':
         prog_name = 'importance_sampling'
         L = 10000
         samples = evaluate_program(ast,prog_name,L)
+        # print('samples are: ', str(samples))
 
         if prog_name == 'importance_sampling':
-            W_sum = sum([val[1] for val in samples])
-            expectation = sum([val[0]*val[1] for val in samples])/W_sum
+            W_sum = sum([torch.exp(val[1]) for val in samples])
+            expectation = sum([val[0]*torch.exp(val[1]) for val in samples])/W_sum
+            variance = sum([torch.square(val[0])*torch.exp(val[1]) for val in samples])/W_sum - torch.square(expectation)
             print('expectation after ',str(L), 'samples is: ',str(expectation))
+            print('variance is: ',str(variance))
+
+
         else:
             print(f'\nExpectation of return values for program {i}:')
             if type(samples[0]) is list:
