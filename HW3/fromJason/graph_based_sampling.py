@@ -111,13 +111,11 @@ def accept(x,x_sample,X0,Q):
     q_expr0 = ["observeS",q[1],X0[x]]
     q_expr1 = ["observeS",q[1],x_sample]
     log_alpha = deterministic_eval(q_expr0) - deterministic_eval(q_expr1)
-    # print('log alpha is: ',str(log_alpha))
 
     Vx = [x]
     for X_key in list(X0.keys()):
         if child(x,Q[X_key]):
             Vx.append(X_key)
-    # print('Vx is: ',str(Vx))
 
     for v in Vx:
         v_expr1 = ["observeS",plugin_parent_values(Q[v][1],Xp),X0[v]]
@@ -129,7 +127,6 @@ def accept(x,x_sample,X0,Q):
     return torch.exp(log_alpha)
 
 def gibbs_step(X,Q):
-    # X is the map from variables to their values.. so it's a dict type?
     for x in list(Q.keys()):
         q = Q[x]
         q = plugin_parent_values(q, X)
@@ -148,12 +145,9 @@ def gibbs(graph,S):
     procs, model, expr = graph[0], graph[1], graph[2]
     nodes, edges, links, obs = model['V'], model['A'], model['P'], model['Y']
     sorted_nodes = topological_sort(nodes, edges)
-    # print('links are: ',str(links))
-    # print('observed are: ',str(obs))
 
     full_output = sample_from_joint(graph)
     X0 = full_output[2]
-    # print('initial proposal is: ',str(X0))
     Q = {}
     Q_temp = { k : links[k] for k in set(links) - set(obs) }
     for q_key in sorted_nodes: # sort Q topologically
@@ -161,10 +155,6 @@ def gibbs(graph,S):
             Q[q_key] = Q_temp[q_key]
 
     X = [{k : X0[k] for k in list(Q.keys())}]
-    # X_out = {}
-    # for k in list(X[0].keys()):
-    #     if k in 
-    # X_out = {k : [X[0][k]] for k in list(X[0].keys())}
     X_out = [deterministic_eval(plugin_parent_values(expr,X[0]))]
 
 
@@ -172,12 +162,9 @@ def gibbs(graph,S):
         q = Q[q_key]
         q = nested_search('sample*','sampleS',q)
         Q[q_key] = plugin_parent_values(q,obs)
-    # print('Q is: ',str(Q) )
 
     for s in range(1,S+1):
         X.append(gibbs_step({**X[s-1]},Q))
-        # for X_key in list(X[s].keys()):
-        #     X_out[X_key].append(X[s][X_key])
         X_out.append(deterministic_eval(plugin_parent_values(expr,X[s])))
     
     return X_out
@@ -261,18 +248,8 @@ if __name__ == '__main__':
                 full_output = sample_from_joint(graph)
                 sample = full_output[0]
                 samples.append(sample)
-                # print('trace is: ',str(full_output[2]))
-
-
         # print('output is: ',str(samples))
 
-        # if prog_name == 'MHinGibbs':
-        #     expectation = []
-        #     variance = []
-        #     for k in range(len[samples[0]])
-        #     print('expectation after ',str(S),' samples is: ',str(expectation))
-        #     print('variance after ',str(S),' samples is: ',str(variance))
-        # else:
         print(f'\nExpectation of return values for program {i}:')
         try:
             L = len(samples[0])
