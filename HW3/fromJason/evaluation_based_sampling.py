@@ -6,6 +6,7 @@ import torch
 import numpy as np
 from primitives import PRIMITIVES
 from collections.abc import Iterable
+import time
 
 
 def evaluate_program(ast,prog_name='prior_sampling',prog_args=[]):
@@ -147,7 +148,7 @@ if __name__ == '__main__':
     # run_deterministic_tests()
     # run_probabilistic_tests()
 
-    for i in range(1,5):
+    for i in range(1,3):
         print('Program ',str(i))
         ast = daphne(['desugar', '-i', '../HW3/fromJason/programs/hw3_p{}.daphne'.format(i)])
 
@@ -157,9 +158,12 @@ if __name__ == '__main__':
         #     samples.append(sample)
         
         prog_name = 'importance_sampling'
-        L = 10000
+        L = 2
+        tic = time.perf_counter()
         samples = evaluate_program(ast,prog_name,L)
-        # print('samples are: ', str(samples))
+        toc = time.perf_counter()
+        print('elapsed time: ',str(toc-tic))
+        print('samples are: ', str(samples))
 
         if prog_name == 'importance_sampling':
             W_sum = sum([torch.exp(val[1]) for val in samples])
@@ -167,6 +171,70 @@ if __name__ == '__main__':
             variance = sum([torch.square(val[0])*torch.exp(val[1]) for val in samples])/W_sum - torch.square(expectation)
             print('expectation after ',str(L), 'samples is: ',str(expectation))
             print('variance is: ',str(variance))
+
+
+            # histograms
+            try:
+                N = len(samples[0][0])
+                figcols = 2
+                figrows = int(np.ceil(N/figcols))
+                fig = plt.figure(figsize=(5,2*figrows))
+                grid = plt.GridSpec(figrows, figcols, figure=fig, hspace=0.35, wspace=0.2)
+
+                axes = {}
+                k = 0
+                for n in range(figrows):
+                    for m in range(figcols):
+                        axes[str(n)+str(m)] = fig.add_subplot(grid[n,m])
+                        k = k+1
+                        if k >= N:
+                            break
+
+                k = 0
+                for n in range(figrows):
+                    for m in range(figcols):
+                        axes[str(n)+str(m)].hist([float(val[0][k]) for val in samples])
+                        k = k+1
+                        if k >= N:
+                            break
+
+                plt.show()
+            except:
+                fig, ax = plt.subplots()
+                ax.hist([float(val[0]) for val in samples])
+                plt.show()
+
+            # if i == 1 or i == 2:
+            #     try:
+            #         N = len(samples[0][0])
+            #         figcols = 2
+            #         figrows = int(np.ceil(N/figcols))
+            #         fig = plt.figure(figsize=(5,2*figrows))
+            #         grid = plt.GridSpec(figrows, figcols, figure=fig, hspace=0.35, wspace=0.2)
+
+            #         axes = {}
+            #         k = 0
+            #         for n in range(figrows):
+            #             for m in range(figcols):
+            #                 axes[str(n)+str(m)] = fig.add_subplot(grid[n,m])
+            #                 k = k+1
+            #                 if k >= N:
+            #                     break
+
+            #         k = 0
+            #         for n in range(figrows):
+            #             for m in range(figcols):
+            #                 axes[str(n)+str(m)].plot([float(val[0][k]) for val in samples])
+            #                 k = k+1
+            #                 if k >= N:
+            #                     break
+
+            #         plt.show()
+            #     except:
+            #         fig, ax = plt.subplots()
+            #         ax.plot([float(val[0]) for val in samples])
+            #         plt.show()
+
 
 
         else:

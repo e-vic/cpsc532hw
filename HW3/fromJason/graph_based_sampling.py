@@ -9,6 +9,8 @@ import numpy as np
 from primitives import PRIMITIVES
 from tests import is_tol, run_prob_test,load_truth
 
+import time
+
 # Put all function mappings from the deterministic language environment to your
 # Python evaluation context here:
 # env = {'normal': dist.Normal,
@@ -232,13 +234,14 @@ if __name__ == '__main__':
     # run_deterministic_tests()
     # run_probabilistic_tests()
     prog_name = 'MHinGibbs'
-    S = 10000
+    S = 10
 
-    for i in range(4,5):
+    for i in range(1,3):
         print('Program ',str(i))
         graph = daphne(['graph','-i','../HW3/fromJason/programs/hw3_p{}.daphne'.format(i)])
         # print('graph is: ',str(graph))
 
+        tic = time.perf_counter()
         if prog_name == 'MHinGibbs':
             samples = gibbs(graph,S)
 
@@ -248,7 +251,9 @@ if __name__ == '__main__':
                 full_output = sample_from_joint(graph)
                 sample = full_output[0]
                 samples.append(sample)
+        toc = time.perf_counter()
         # print('output is: ',str(samples))
+        print('elapsed time is: ',str(toc-tic))
 
         print(f'\nExpectation of return values for program {i}:')
         try:
@@ -264,6 +269,69 @@ if __name__ == '__main__':
         
         print('expectation after ',str(S),' samples is: ',str(expectation))
         print('variance after ',str(S),' samples is: ',str(variance))
+
+        # histograms
+        try:
+            N = len(samples[0])
+            figcols = 2
+            figrows = int(np.ceil(N/figcols))
+            fig = plt.figure(figsize=(5,2*figrows))
+            grid = plt.GridSpec(figrows, figcols, figure=fig, hspace=0.35, wspace=0.2)
+
+            axes = {}
+            k = 0
+            for n in range(figrows):
+                for m in range(figcols):
+                    axes[str(n)+str(m)] = fig.add_subplot(grid[n,m])
+                    k = k+1
+                    if k >= N:
+                        break
+
+            k = 0
+            for n in range(figrows):
+                for m in range(figcols):
+                    axes[str(n)+str(m)].hist([float(val[k]) for val in samples])
+                    k = k+1
+                    if k >= N:
+                        break
+
+            plt.show()
+        except:
+            fig, ax = plt.subplots()
+            ax.hist([float(val) for val in samples])
+            plt.show()
+
+        # sample trace
+        if i == 1 or i == 2:
+            try:
+                N = len(samples[0])
+                figcols = 2
+                figrows = int(np.ceil(N/figcols))
+                fig = plt.figure(figsize=(5,2*figrows))
+                grid = plt.GridSpec(figrows, figcols, figure=fig, hspace=0.35, wspace=0.2)
+
+                axes = {}
+                k = 0
+                for n in range(figrows):
+                    for m in range(figcols):
+                        axes[str(n)+str(m)] = fig.add_subplot(grid[n,m])
+                        k = k+1
+                        if k >= N:
+                            break
+
+                k = 0
+                for n in range(figrows):
+                    for m in range(figcols):
+                        axes[str(n)+str(m)].plot([float(val[k]) for val in samples])
+                        k = k+1
+                        if k >= N:
+                            break
+
+                plt.show()
+            except:
+                fig, ax = plt.subplots()
+                ax.plot([float(val) for val in samples])
+                plt.show()
 
         # if type(samples[0]) is list:
         #     expectation = [None]*len(samples[0])
