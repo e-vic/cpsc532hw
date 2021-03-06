@@ -107,9 +107,11 @@ def child(key,exp):
     return False
 
 def accept(x,x_sample,X0,Q):
+    # print('sample is: ',str(x))
     Xp = {**X0}
     Xp[x] = x_sample
     q = Q[x] # q is the same for both X and X'
+    q = plugin_parent_values(q, X0)
     q_expr0 = ["observeS",q[1],X0[x]]
     q_expr1 = ["observeS",q[1],x_sample]
     log_alpha = deterministic_eval(q_expr0) - deterministic_eval(q_expr1)
@@ -132,6 +134,7 @@ def gibbs_step(X,Q):
     for x in list(Q.keys()):
         q = Q[x]
         q = plugin_parent_values(q, X)
+        # print('q in gibbs step is: ',str(q))
         x_sample = deterministic_eval(q)
 
         alpha = accept(x,x_sample,X,Q)
@@ -139,14 +142,16 @@ def gibbs_step(X,Q):
         if bool(u < alpha):
             X[x] = x_sample
 
-        return X
-
-
+    return X
 
 def gibbs(graph,S):
     procs, model, expr = graph[0], graph[1], graph[2]
     nodes, edges, links, obs = model['V'], model['A'], model['P'], model['Y']
     sorted_nodes = topological_sort(nodes, edges)
+
+    # print('sorted vars: ',str(sorted_nodes))
+
+    # print('graph is: ', str(links))
 
     full_output = sample_from_joint(graph)
     X0 = full_output[2]
@@ -158,7 +163,6 @@ def gibbs(graph,S):
 
     X = [{k : X0[k] for k in list(Q.keys())}]
     X_out = [deterministic_eval(plugin_parent_values(expr,X[0]))]
-
 
     for q_key in list(Q.keys()):
         q = Q[q_key]
