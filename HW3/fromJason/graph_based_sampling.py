@@ -246,19 +246,21 @@ def bbvi(T,L,graph):
     nodes, edges, links, obs = model['V'], model['A'], model['P'], model['Y']
     sorted_nodes = topological_sort(nodes, edges)
 
-    _, sigma,_ = sample_from_joint(graph) 
+    _, sigma,temp = sample_from_joint(graph) 
     # USE SAMPLE FROM JOINT TO TURN EXPR INTO PRE-EVALUATED THING THAT CAN JUST BE SAMPLED/OBSERVED LIKE IN ALG 14, 
     # SO RECOMPUTNG DOESN'T HAVE TO HAPPEN
 
     print('expression is: ',str(expr))
-    print('links are: ',str(links))
-    print('sigma q is: ',str(sigma['q']))
-    print('sorted nodes are: ',str(sorted_nodes))
+    # print('links are: ',str(links))
+    # print('sigma q is: ',str(sigma['q']))
+    # print('sorted nodes are: ',str(sorted_nodes))
 
-    if type(expr) == str:
+    expr2 = plugin_parent_values(expr,temp)
+    temp_outputs = deterministic_eval(expr2)
+    try:
+        num_outputs = len(temp_outputs)
+    except:
         num_outputs = 1
-    else:
-        num_outputs = len(expr)
 
     sigma['logW'] = 0
     sigma['G'] = {}
@@ -354,7 +356,7 @@ if __name__ == '__main__':
     S = 700
     L = 50
 
-    for i in range(1,2):
+    for i in range(3,4):
         print('Program ',str(i))
         graph = daphne(['graph','-i','../HW3/fromJason/programs/hw4_{}.daphne'.format(i)])
         # print('graph is: ',str(graph))
@@ -366,11 +368,13 @@ if __name__ == '__main__':
             full_output = bbvi(S,L,graph)
             samples = full_output[0]
             num_outputs = full_output[2]
+            # print('full output is: ',str(full_output))
+            # print('number of outputs are: ', str(num_outputs))
             if num_outputs == 1:
                 converged_samples = [[samples[s][-1] for s in range(S)]]
             else:
-                converged_samples = [[samples[s][k][-1] for s in range(S)] for k in range(num_outputs)]
-            # print('full output is: ',str(full_output))
+                converged_samples = [[samples[s][-1][k] for s in range(S)] for k in range(num_outputs)]
+            
             # print('converged samples are: ', str(converged_samples))
         else:
             samples, n = [], S
