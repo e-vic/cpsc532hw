@@ -1,7 +1,7 @@
 from copy import deepcopy
 import torch
 from collections.abc import Iterable
-
+from distributions import *
 
 def add(a,b):
     return torch.add(a,b)
@@ -133,20 +133,20 @@ PRIMITIVES = {
     "list": list,
     "get": get,
     "put": put,
-    "bernoulli": bernoulli,
+    "bernoulli": Bernoulli,
     "beta": beta,
-    "normal": normal,
+    "normal": Normal,
     "uniform": uniform,
     "exponential": exponential,
-    "discrete": discrete,
+    "discrete": Categorical,
     "mat-transpose": transpose,
     "mat-add": add,
     "mat-tanh": tanh,
     "mat-repmat": repmat,
     "mat-mul": matmul,
     "if": lambda cond, v1, v2: v1 if cond else v2, # for graph based sampling
-    "gamma": gamma,
-    "dirichlet": dirichlet,
+    "gamma": Gamma,
+    "dirichlet": Dirichlet,
     "flip": flip,
     "and": lambda b1, b2: b1 and b2,
     "or": lambda b1, b2: b1 or b2,

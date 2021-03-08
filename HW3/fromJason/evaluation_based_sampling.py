@@ -116,8 +116,6 @@ def run_deterministic_tests():
         print('Test passed')
         
     print('All deterministic tests passed')
-    
-
 
 def run_probabilistic_tests():
     

@@ -1,15 +1,18 @@
 import torch
 import torch.distributions as dist
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 from daphne import daphne
 import numpy as np
 
 from primitives import PRIMITIVES
 from tests import is_tol, run_prob_test,load_truth
+from distributions import *
 
 import time
+
+dev_cpu = torch.device("cpu")
+# device = torch.device("cuda:0")
 
 # Put all function mappings from the deterministic language environment to your
 # Python evaluation context here:
@@ -70,6 +73,7 @@ def sample_from_joint(graph):
     sorted_nodes = topological_sort(nodes, edges)
 
     sigma = {}
+    sigma['q'] = {}
     trace = {}
     for node in sorted_nodes:
         keyword = links[node][0]
@@ -77,6 +81,7 @@ def sample_from_joint(graph):
             link_expr = links[node][1]
             link_expr = plugin_parent_values(link_expr, trace)
             dist_obj  = deterministic_eval(link_expr)
+            sigma['q'][node] = dist_obj.make_copy_with_grads()
             trace[node] = dist_obj.sample()
         elif keyword == "observe*":
             trace[node] = obs[node]
@@ -175,6 +180,95 @@ def gibbs(graph,S):
     
     return X_out
 
+
+def bbvi_eval(node,expr,sigma,trace):
+    """
+    copied from above sample_from_joint, with updated sample and observe statements
+    """
+    keyword = expr[0]
+    print('in bbvi_eval')
+    print('full expression is: ',str(expr))
+    if keyword == "sample*":
+        link_expr = expr[1]
+        link_expr = plugin_parent_values(link_expr, trace)
+        dist_obj0  = deterministic_eval(link_expr)
+        dist_obj = dist_obj0.make_copy_with_grads()
+
+        if  node not in list(sigma['q'].keys()):
+            sigma['q'][node] = dist_obj
+        
+        c = sigma['q'][node].sample()
+        lp = sigma['q'][node].log_prob(c)
+        lp.backward()
+        print('what is v in dist_obj.params? ',str([v for v in sigma['q'][node].Parameters()]))
+        print('gradient of log prob ', str([v.grad for v in sigma['q'][node].Parameters()]))
+        
+        trace[node] = c
+        sigma['G'][node] = [v.grad for v in sigma['q'][node].Parameters()]
+        sigma['logW'] = sigma['logW'] + (dist_obj.log_prob(c) - lp)
+
+        return c, sigma
+
+    elif keyword == "observe*":
+        e1 = expr[1]
+        e1 = plugin_parent_values(e1, trace)
+        e2 = expr[2]
+        e2 = plugin_parent_values(e2, trace)
+        p = deterministic_eval(e1)
+        c = deterministic_eval(e2)
+        obs = p.log_prob(c)
+        sigma['logW'] = sigma['logW'] + obs
+        # trace[node] = obs
+        trace[node] = c
+
+        return c, sigma
+
+def elbo_grad(Gl,logWl):
+    
+
+def bbvi(T,L,graph):
+    procs, model, expr = graph[0], graph[1], graph[2]
+    nodes, edges, links, obs = model['V'], model['A'], model['P'], model['Y']
+    sorted_nodes = topological_sort(nodes, edges)
+
+    _, sigma,_ = sample_from_joint(graph) 
+    # USE SAMPLE FROM JOINT TO TURN EXPR INTO PRE-EVALUATED THING THAT CAN JUST BE SAMPLED/OBSERVED LIKE IN ALG 14, 
+    # SO RECOMPUTNG DOESN'T HAVE TO HAPPEN
+
+    print('expression is: ',str(expr))
+    print('links are: ',str(links))
+    print('sigma q is: ',str(sigma['q']))
+    print('sorted nodes are: ',str(sorted_nodes))
+
+    if type(expr) == str:
+        num_outputs = 1
+    else:
+        num_outputs = len(expr)
+
+    sigma['logW'] = 0
+    sigma['G'] = {}
+    trace = {}
+    r = [None]*T
+    logW = [None]*T
+
+    for t in range(T):
+        rl = []
+        Gl = []
+        logWl = []
+        for l in range(L):
+            for node in sorted_nodes:
+                _,sigma = bbvi_eval(node,links[node],sigma,trace)
+                print('trace updated? ',str(trace))
+            r_expr = plugin_parent_values(expr,trace)
+            rl.append(deterministic_eval(r_expr))
+            Gl.append({**sigma['G']})
+            logWl.append(*[sigma['logW']])
+        # g_hat = 
+
+        r[t] = [*rl]
+        logW[t] = [*logWl]
+    return r,logW,num_outputs
+
 def get_stream(graph):
     """Return a stream of prior samples
     Args: 
@@ -204,8 +298,6 @@ def run_deterministic_tests():
         print('Test passed')
         
     print('All deterministic tests passed')
-
-
 
 def run_probabilistic_tests():
     
@@ -237,18 +329,24 @@ if __name__ == '__main__':
 
     # run_deterministic_tests()
     # run_probabilistic_tests()
-    prog_name = 'MHinGibbs'
-    S = 10000
+    # prog_name = 'MHinGibbs'
+    prog_name = 'BBVI'
+    S = 2
+    L = 2
 
-    for i in range(1,5):
+    for i in range(1,2):
         print('Program ',str(i))
-        graph = daphne(['graph','-i','../HW3/fromJason/programs/hw3_p{}.daphne'.format(i)])
+        graph = daphne(['graph','-i','../HW3/fromJason/programs/hw4_{}.daphne'.format(i)])
         # print('graph is: ',str(graph))
 
         tic = time.perf_counter()
         if prog_name == 'MHinGibbs':
             samples = gibbs(graph,S)
-
+        elif prog_name == 'BBVI':
+            full_output = bbvi(S,L,graph)
+            samples = full_output[0]
+            num_outputs = full_output[2]
+            print('full output is: ',str(full_output))
         else:
             samples, n = [], S
             for j in range(n):
@@ -256,7 +354,7 @@ if __name__ == '__main__':
                 sample = full_output[0]
                 samples.append(sample)
         toc = time.perf_counter()
-        # print('output is: ',str(samples))
+        print('samples are: ',str(samples))
         print('elapsed time is: ',str(toc-tic))
 
         print(f'\nExpectation of return values for program {i}:')
