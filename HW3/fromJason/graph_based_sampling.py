@@ -186,8 +186,8 @@ def bbvi_eval(node,expr,sigma,trace):
     copied from above sample_from_joint, with updated sample and observe statements
     """
     keyword = expr[0]
-    print('in bbvi_eval')
-    print('full expression is: ',str(expr))
+    # print('in bbvi_eval')
+    # print('full expression is: ',str(expr))
     if keyword == "sample*":
         link_expr = expr[1]
         link_expr = plugin_parent_values(link_expr, trace)
@@ -196,12 +196,13 @@ def bbvi_eval(node,expr,sigma,trace):
 
         if  node not in list(sigma['q'].keys()):
             sigma['q'][node] = dist_obj
+            sigma['opt'][node] = torch.optim.Adam(dist_obj.Parameters(), lr=1e-2)
         
         c = sigma['q'][node].sample()
         lp = sigma['q'][node].log_prob(c)
         lp.backward()
-        print('what is v in dist_obj.params? ',str([v for v in sigma['q'][node].Parameters()]))
-        print('gradient of log prob ', str([v.grad for v in sigma['q'][node].Parameters()]))
+        # print('what is v in dist_obj.params? ',str([v for v in sigma['q'][node].Parameters()]))
+        # print('gradient of log prob ', str([v.grad for v in sigma['q'][node].Parameters()]))
         
         trace[node] = c
         sigma['G'][node] = [v.grad for v in sigma['q'][node].Parameters()]
@@ -224,7 +225,21 @@ def bbvi_eval(node,expr,sigma,trace):
         return c, sigma
 
 def elbo_grad(Gl,logWl):
-    
+    nodes = list(set([list(G.keys())[i] for G in Gl for i in range(len(list(G.keys())))]))
+    g_hat = []
+    L = len(logWl)
+    for node in nodes:
+        F = []
+        for l in range(L):
+            if node in list(Gl[l].keys()):
+                F.append(torch.multiply(torch.tensor(Gl[l][node]),logWl[l]))
+            else:
+                F.append(torch.tensor([0.,0.]))
+                Gl[l][node] = torch.tensor([0.,0.])
+        # print(F)
+        b_hat = sum([np.cov(torch.multiply(F[l],torch.tensor(Gl[l][node]))) for l in range(L)])/sum([np.var([Gl[l][node][i] for l in range(L)]) for i in range(len(Gl[l][node]))])
+        g_hat.append(torch.divide(sum(F-torch.multiply(b_hat,[Gl[l][node] for l in range(L)])),L))
+    return g_hat
 
 def bbvi(T,L,graph):
     procs, model, expr = graph[0], graph[1], graph[2]
@@ -255,15 +270,20 @@ def bbvi(T,L,graph):
         rl = []
         Gl = []
         logWl = []
+        sigma['opt'] = {}
         for l in range(L):
             for node in sorted_nodes:
                 _,sigma = bbvi_eval(node,links[node],sigma,trace)
-                print('trace updated? ',str(trace))
+                # print('trace updated? ',str(trace))
             r_expr = plugin_parent_values(expr,trace)
             rl.append(deterministic_eval(r_expr))
             Gl.append({**sigma['G']})
             logWl.append(*[sigma['logW']])
-        # g_hat = 
+        # print('Gl is: ', str(Gl))
+
+        for thing in sigma['opt']:
+            thing.step()
+            thing.zero_grad()
 
         r[t] = [*rl]
         logW[t] = [*logWl]
@@ -331,8 +351,8 @@ if __name__ == '__main__':
     # run_probabilistic_tests()
     # prog_name = 'MHinGibbs'
     prog_name = 'BBVI'
-    S = 2
-    L = 2
+    S = 700
+    L = 50
 
     for i in range(1,2):
         print('Program ',str(i))
@@ -346,7 +366,12 @@ if __name__ == '__main__':
             full_output = bbvi(S,L,graph)
             samples = full_output[0]
             num_outputs = full_output[2]
-            print('full output is: ',str(full_output))
+            if num_outputs == 1:
+                converged_samples = [[samples[s][-1] for s in range(S)]]
+            else:
+                converged_samples = [[samples[s][k][-1] for s in range(S)] for k in range(num_outputs)]
+            # print('full output is: ',str(full_output))
+            # print('converged samples are: ', str(converged_samples))
         else:
             samples, n = [], S
             for j in range(n):
@@ -354,17 +379,24 @@ if __name__ == '__main__':
                 sample = full_output[0]
                 samples.append(sample)
         toc = time.perf_counter()
-        print('samples are: ',str(samples))
+        # print('samples are: ',str(samples))
         print('elapsed time is: ',str(toc-tic))
 
         print(f'\nExpectation of return values for program {i}:')
         try:
-            L = len(samples[0])
-            expectation = [None]*L
-            variance = [None]*L
-            for k in range(L):
-                variance[k] =  np.var([samples[i][k] for i in range(S+1)])
-                expectation[k] =  np.mean([samples[i][k] for i in range(S+1)])
+            if prog_name != 'BBVI':
+                N = len(samples[0])
+                expectation = [None]*N
+                variance = [None]*N
+                for k in range(N):
+                    variance[k] =  np.var([samples[i][k] for i in range(S+1)])
+                    expectation[k] =  np.mean([samples[i][k] for i in range(S+1)])
+            else:
+                expectation = [None]*num_outputs
+                variance = [None]*num_outputs
+                for k in range(num_outputs):
+                    variance[k] = np.var(converged_samples[k])
+                    expectation[k] = np.mean(converged_samples[k])
         except:
             expectation = np.mean(samples)
             variance = np.var(samples)
@@ -374,37 +406,65 @@ if __name__ == '__main__':
 
         # histograms
         try:
-            N = len(samples[0])
-            figcols = 2
-            figrows = int(np.ceil(N/figcols))
-            fig = plt.figure(figsize=(5,2*figrows))
-            grid = plt.GridSpec(figrows, figcols, figure=fig, hspace=0.35, wspace=0.2)
+            if prog_name != 'BBVI':
+                N = len(samples[0])
+                figcols = 2
+                figrows = int(np.ceil(N/figcols))
+                fig = plt.figure(figsize=(5,2*figrows))
+                grid = plt.GridSpec(figrows, figcols, figure=fig, hspace=0.35, wspace=0.2)
 
-            axes = {}
-            k = 0
-            for n in range(figrows):
-                for m in range(figcols):
-                    axes[str(n)+str(m)] = fig.add_subplot(grid[n,m])
-                    k = k+1
-                    if k >= N:
-                        break
+                axes = {}
+                k = 0
+                for n in range(figrows):
+                    for m in range(figcols):
+                        axes[str(n)+str(m)] = fig.add_subplot(grid[n,m])
+                        k = k+1
+                        if k >= N:
+                            break
 
-            k = 0
-            for n in range(figrows):
-                for m in range(figcols):
-                    axes[str(n)+str(m)].hist([float(val[k]) for val in samples])
-                    k = k+1
-                    if k >= N:
-                        break
+                k = 0
+                for n in range(figrows):
+                    for m in range(figcols):
+                        axes[str(n)+str(m)].hist([float(val[k]) for val in samples])
+                        k = k+1
+                        if k >= N:
+                            break
 
-            plt.show()
+                plt.show()
+            else: 
+                if num_outputs == 1:
+                    figcols = 1
+                else:
+                    figcols = 2
+                figrows = int(np.ceil(num_outputs/figcols))
+                fig = plt.figure(figsize=(5,2*figrows))
+                grid = plt.GridSpec(figrows, figcols, figure=fig, hspace=0.35, wspace=0.2)
+
+                axes = {}
+                k = 0
+                for n in range(figrows):
+                    for m in range(figcols):
+                        axes[str(n)+str(m)] = fig.add_subplot(grid[n,m])
+                        k = k+1
+                        if k >= num_outputs:
+                            break
+
+                k = 0
+                for n in range(figrows):
+                    for m in range(figcols):
+                        axes[str(n)+str(m)].hist(converged_samples[k])
+                        k = k+1
+                        if k >= num_outputs:
+                            break
+
+                plt.show()
         except:
             fig, ax = plt.subplots()
             ax.hist([float(val) for val in samples])
             plt.show()
 
         # sample trace
-        if i == 1 or i == 2:
+        if (i == 1 or i == 2) and prog_name != 'BBVI':
             try:
                 N = len(samples[0])
                 figcols = 2
