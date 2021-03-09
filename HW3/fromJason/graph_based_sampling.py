@@ -353,10 +353,10 @@ if __name__ == '__main__':
     # run_probabilistic_tests()
     # prog_name = 'MHinGibbs'
     prog_name = 'BBVI'
-    S = 700
-    L = 50
+    S = 300 # number of samples
+    L = 20 # number of gradient steps
 
-    for i in range(3,4):
+    for i in range(1,2):
         print('Program ',str(i))
         graph = daphne(['graph','-i','../HW3/fromJason/programs/hw4_{}.daphne'.format(i)])
         # print('graph is: ',str(graph))
@@ -365,15 +365,17 @@ if __name__ == '__main__':
         if prog_name == 'MHinGibbs':
             samples = gibbs(graph,S)
         elif prog_name == 'BBVI':
-            full_output = bbvi(S,L,graph)
+            full_output = bbvi(L,S,graph)
             samples = full_output[0]
             num_outputs = full_output[2]
             # print('full output is: ',str(full_output))
             # print('number of outputs are: ', str(num_outputs))
             if num_outputs == 1:
-                converged_samples = [[samples[s][-1] for s in range(S)]]
+                # converged_samples = [[samples[s][-1] for s in range(S)]]
+                converged_samples = [[samples[-1]]]
             else:
-                converged_samples = [[samples[s][-1][k] for s in range(S)] for k in range(num_outputs)]
+                # converged_samples = [[samples[s][-1][k] for s in range(S)] for k in range(num_outputs)]
+                converged_samples = [[samples[-1][s][k] for s in range(S)] for k in range(num_outputs)]
             
             # print('converged samples are: ', str(converged_samples))
         else:
