@@ -109,6 +109,8 @@ def observeS(*vals):
 def sampleS(dist):
     # takes in distribution type variable
     return dist.sample()
+def abs(val):
+    return torch.abs(val)
     
 
 PRIMITIVES = {
@@ -151,5 +153,6 @@ PRIMITIVES = {
     "and": lambda b1, b2: b1 and b2,
     "or": lambda b1, b2: b1 or b2,
     "observeS": observeS,
-    "sampleS": sampleS
+    "sampleS": sampleS,
+    "abs": abs
 }

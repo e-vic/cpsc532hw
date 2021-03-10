@@ -194,9 +194,12 @@ def bbvi_eval(node,expr,sigma,trace):
         dist_obj0  = deterministic_eval(link_expr)
         dist_obj = dist_obj0.make_copy_with_grads()
 
-        if  node not in list(sigma['q'].keys()):
+        if  node not in list(sigma['q'].keys()): #once initialized it never gets reinitialised
             sigma['q'][node] = dist_obj
+            # print('torch optimisation parameters: ',str(torch.optim.Adam(dist_obj.Parameters(), lr=1e-2)))
             sigma['opt'][node] = torch.optim.Adam(dist_obj.Parameters(), lr=1e-2)
+        else:
+            sigma['opt'][node] = torch.optim.Adam(sigma['q'][node].Parameters(), lr=1e-2)
         
         c = sigma['q'][node].sample()
         lp = sigma['q'][node].log_prob(c)
@@ -226,7 +229,7 @@ def bbvi_eval(node,expr,sigma,trace):
 
 def elbo_grad(Gl,logWl):
     nodes = list(set([list(G.keys())[i] for G in Gl for i in range(len(list(G.keys())))]))
-    g_hat = []
+    g_hat = {}
     L = len(logWl)
     for node in nodes:
         F = []
@@ -238,7 +241,8 @@ def elbo_grad(Gl,logWl):
                 Gl[l][node] = torch.tensor([0.,0.])
         # print(F)
         b_hat = sum([np.cov(torch.multiply(F[l],torch.tensor(Gl[l][node]))) for l in range(L)])/sum([np.var([Gl[l][node][i] for l in range(L)]) for i in range(len(Gl[l][node]))])
-        g_hat.append(torch.divide(sum(F-torch.multiply(b_hat,[Gl[l][node] for l in range(L)])),L))
+        print('b hat is: ',str(b_hat))
+        g_hat[node] = torch.divide(sum(F-torch.multiply(b_hat,[Gl[l][node] for l in range(L)])),L)
     return g_hat
 
 def bbvi(T,L,graph):
@@ -262,6 +266,7 @@ def bbvi(T,L,graph):
     except:
         num_outputs = 1
 
+    sigma['q'] = {}
     sigma['logW'] = 0
     sigma['G'] = {}
     trace = {}
@@ -282,14 +287,25 @@ def bbvi(T,L,graph):
             Gl.append({**sigma['G']})
             logWl.append(*[sigma['logW']])
         # print('Gl is: ', str(Gl))
+        print('gradients are: ',str(sigma['G']))
+        print('sigma opt is: ',str(sigma['opt']))
+        g_hat = elbo_grad(Gl,logWl)
 
-        for thing in sigma['opt']:
-            thing.step()
-            thing.zero_grad()
+        # NEED TO UPDATE PARAMETER GRADIENTS WITH THE ONES FROM ELBO GRAD
 
+        for node in sigma['opt'].keys():
+            # print('thing is: ',str(thing))
+            p = 0
+            for param in sigma['q'][node].Parameters():
+                param.grad = g_hat[node][p] # update the gradients to be g_hat
+                p = p + 1
+            sigma['opt'][node].step()
+            sigma['opt'][node].zero_grad()
+
+        # print('does q change? ',str(sigma['q']))
         r[t] = [*rl]
         logW[t] = [*logWl]
-    return r,logW,num_outputs
+    return r,logW,sigma['q'],num_outputs
 
 def get_stream(graph):
     """Return a stream of prior samples
@@ -353,8 +369,8 @@ if __name__ == '__main__':
     # run_probabilistic_tests()
     # prog_name = 'MHinGibbs'
     prog_name = 'BBVI'
-    S = 300 # number of samples
-    L = 20 # number of gradient steps
+    S = 1 # number of samples
+    L = 3 # number of gradient steps
 
     for i in range(1,2):
         print('Program ',str(i))
@@ -367,9 +383,12 @@ if __name__ == '__main__':
         elif prog_name == 'BBVI':
             full_output = bbvi(L,S,graph)
             samples = full_output[0]
-            num_outputs = full_output[2]
+            Q = full_output[2]
+            num_outputs = full_output[-1]
+            # print('unsorted samples are: ',str(samples))
             # print('full output is: ',str(full_output))
             # print('number of outputs are: ', str(num_outputs))
+            print('final distribution is: ',str(Q))
             if num_outputs == 1:
                 # converged_samples = [[samples[s][-1] for s in range(S)]]
                 converged_samples = [[samples[-1]]]
@@ -388,7 +407,7 @@ if __name__ == '__main__':
         # print('samples are: ',str(samples))
         print('elapsed time is: ',str(toc-tic))
 
-        print(f'\nExpectation of return values for program {i}:')
+        # print(f'\nExpectation of return values for program {i}:')
         try:
             if prog_name != 'BBVI':
                 N = len(samples[0])
@@ -404,8 +423,9 @@ if __name__ == '__main__':
                     variance[k] = np.var(converged_samples[k])
                     expectation[k] = np.mean(converged_samples[k])
         except:
-            expectation = np.mean(samples)
-            variance = np.var(samples)
+            if i != 4:
+                expectation = np.mean(samples)
+                variance = np.var(samples)
         
         print('expectation after ',str(S),' samples is: ',str(expectation))
         print('variance after ',str(S),' samples is: ',str(variance))

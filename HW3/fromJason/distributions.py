@@ -144,6 +144,7 @@ class Gamma(dist.Gamma):
 
 
 
+
 if __name__ == '__main__':
     
     ##how to use this, 
