@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 
 from daphne import daphne
 import numpy as np
+import copy
 
 from primitives import PRIMITIVES
 from tests import is_tol, run_prob_test,load_truth
@@ -208,7 +209,9 @@ def bbvi_eval(node,expr,sigma,trace):
         # print('gradient of log prob ', str([v.grad for v in sigma['q'][node].Parameters()]))
         
         trace[node] = c
-        sigma['G'][node] = [v.grad for v in sigma['q'][node].Parameters()]
+        # print('gradients in eval are: ',str([v.grad for v in sigma['q'][node].Parameters()]))
+        grads = [v.grad for v in sigma['q'][node].Parameters()]
+        sigma['G'][node] = torch.tensor([*grads])
         sigma['logW'] = sigma['logW'] + (dist_obj.log_prob(c) - lp)
 
         return c, sigma
@@ -235,14 +238,27 @@ def elbo_grad(Gl,logWl):
         F = []
         for l in range(L):
             if node in list(Gl[l].keys()):
-                F.append(torch.multiply(torch.tensor(Gl[l][node]),logWl[l]))
+                F.append(torch.multiply(Gl[l][node],logWl[l]))
             else:
                 F.append(torch.tensor([0.,0.]))
                 Gl[l][node] = torch.tensor([0.,0.])
-        # print(F)
-        b_hat = sum([np.cov(torch.multiply(F[l],torch.tensor(Gl[l][node]))) for l in range(L)])/sum([np.var([Gl[l][node][i] for l in range(L)]) for i in range(len(Gl[l][node]))])
-        print('b hat is: ',str(b_hat))
-        g_hat[node] = torch.divide(sum(F-torch.multiply(b_hat,[Gl[l][node] for l in range(L)])),L)
+        # print('numerator is: ',str([np.cov(torch.multiply(F[l],torch.tensor(Gl[l][node])).detach()) for l in range(L)]))
+        # print('denominator is: ',str([np.var([Gl[l][node][i].detach() for l in range(L)]) for i in range(len(Gl[l][node]))]))
+        # print('F is: ',str(F))
+        # print('G is: ',str(Gl))
+        # print('covariance of first entries: ',np.cov(F[0].detach(),Gl[0][node].detach()))
+        # print('covariance of first entries upper corner: ',np.cov(F[0].detach(),Gl[0][node].detach())[0,1])
+        b_hat = sum([np.cov(F[l].detach(),Gl[l][node].detach())[0,1] for l in range(L)])/sum([np.var([Gl[l][node][i].detach().numpy() for l in range(L)]) for i in range(len(Gl[l][node]))])
+        # print('b hat is: ',str(b_hat))
+        
+        # print('F is: ',str(F))
+        # print('does the multiplication work? ',str([np.multiply(-1*b_hat,Gl[l][node]) for l in range(L)]))
+        temp = [np.multiply(-1*b_hat,Gl[l][node]) for l in range(L)]
+        Ftemp = [torch.add(F[i],temp[i]) for i in range(len(F))]
+        # print('Ftemp is: ',str(temp))
+        sumFtemp = torch.stack(Ftemp,dim=0).sum(dim=0)
+        # print('sum is: ',str(sumFtemp))
+        g_hat[node] = torch.divide(sumFtemp,L)
     return g_hat
 
 def bbvi(T,L,graph):
@@ -275,32 +291,44 @@ def bbvi(T,L,graph):
 
     for t in range(T):
         rl = []
-        Gl = []
+        Gl = [None]*L
+        # Gl = []
         logWl = []
         sigma['opt'] = {}
         for l in range(L):
+            # Gl[l] = {}
             for node in sorted_nodes:
+                # print('node is: ',str(node))
                 _,sigma = bbvi_eval(node,links[node],sigma,trace)
-                # print('trace updated? ',str(trace))
+                # print('Gl right after bbvi eval: ',str(Gl))
+                # if node in list(sigma['q'].keys()):
+                #     Gl[l][node] = [*grads]
+            # print('gradients are: ',str(sigma['G']))
             r_expr = plugin_parent_values(expr,trace)
             rl.append(deterministic_eval(r_expr))
-            Gl.append({**sigma['G']})
+            Gl[l] = copy.deepcopy(sigma['G'])
+            # print('Gl updated? ',str(Gl))
             logWl.append(*[sigma['logW']])
+            # print('trace updated? ',str(trace))
+        
         # print('Gl is: ', str(Gl))
-        print('gradients are: ',str(sigma['G']))
-        print('sigma opt is: ',str(sigma['opt']))
+        # print('sigma opt is: ',str(sigma['opt']))
+        # print('trace is: ',str(trace))
         g_hat = elbo_grad(Gl,logWl)
+        print('g_hat is: ',str(g_hat))
 
         # NEED TO UPDATE PARAMETER GRADIENTS WITH THE ONES FROM ELBO GRAD
 
         for node in sigma['opt'].keys():
-            # print('thing is: ',str(thing))
             p = 0
             for param in sigma['q'][node].Parameters():
                 param.grad = g_hat[node][p] # update the gradients to be g_hat
                 p = p + 1
             sigma['opt'][node].step()
-            sigma['opt'][node].zero_grad()
+            # sigma['opt'][node].zero_grad()
+            for param in sigma['q'][node].Parameters():
+                param.grad = 0*param.grad # need to zero the gradients since zero_grad isn't working with custom gradients
+                p = p + 1
 
         # print('does q change? ',str(sigma['q']))
         r[t] = [*rl]
@@ -369,8 +397,8 @@ if __name__ == '__main__':
     # run_probabilistic_tests()
     # prog_name = 'MHinGibbs'
     prog_name = 'BBVI'
-    S = 1 # number of samples
-    L = 3 # number of gradient steps
+    S = 20 # number of samples
+    L = 30 # number of gradient steps
 
     for i in range(1,2):
         print('Program ',str(i))
