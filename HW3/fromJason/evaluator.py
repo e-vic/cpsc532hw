@@ -30,7 +30,7 @@ def run_deterministic_tests():
     
     for i in range(1,14):
 
-        exp = daphne(['desugar-hoppl', '-i', '../../HW5/programs/tests/deterministic/test_{}.daphne'.format(i)])
+        exp = daphne(['desugar-hoppl', '-i', '../HW3/fromJason/programs/tests/deterministic/test_{}.daphne'.format(i)])
         truth = load_truth('programs/tests/deterministic/test_{}.truth'.format(i))
         ret = evaluate(exp)
         try:
@@ -42,7 +42,7 @@ def run_deterministic_tests():
         
     for i in range(1,13):
 
-        exp = daphne(['desugar-hoppl', '-i', '../../HW5/programs/tests/hoppl-deterministic/test_{}.daphne'.format(i)])
+        exp = daphne(['desugar-hoppl', '-i', '../HW3/fromJason/programs/tests/hoppl-deterministic/test_{}.daphne'.format(i)])
         truth = load_truth('programs/tests/hoppl-deterministic/test_{}.truth'.format(i))
         ret = evaluate(exp)
         try:
