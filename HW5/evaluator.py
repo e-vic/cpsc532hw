@@ -30,7 +30,7 @@ def run_deterministic_tests():
     
     for i in range(1,14):
 
-        exp = daphne(['desugar-hoppl', '-i', '../HW3/fromJason/programs/tests/deterministic/test_{}.daphne'.format(i)])
+        exp = daphne(['desugar-hoppl', '-i', '../HW5/programs/tests/deterministic/test_{}.daphne'.format(i)])
         truth = load_truth('programs/tests/deterministic/test_{}.truth'.format(i))
         ret = evaluate(exp)
         try:
@@ -42,7 +42,7 @@ def run_deterministic_tests():
         
     for i in range(1,13):
 
-        exp = daphne(['desugar-hoppl', '-i', '../HW3/fromJason/programs/tests/hoppl-deterministic/test_{}.daphne'.format(i)])
+        exp = daphne(['desugar-hoppl', '-i', '../HW5/programs/tests/hoppl-deterministic/test_{}.daphne'.format(i)])
         truth = load_truth('programs/tests/hoppl-deterministic/test_{}.truth'.format(i))
         ret = evaluate(exp)
         try:
@@ -62,7 +62,7 @@ def run_probabilistic_tests():
     max_p_value = 1e-2
     
     for i in range(1,7):
-        exp = daphne(['desugar-hoppl', '-i', '../../HW5/programs/tests/probabilistic/test_{}.daphne'.format(i)])
+        exp = daphne(['desugar-hoppl', '-i', '../HW5/programs/tests/probabilistic/test_{}.daphne'.format(i)])
         truth = load_truth('programs/tests/probabilistic/test_{}.truth'.format(i))
         
         stream = get_stream(exp)
@@ -84,6 +84,6 @@ if __name__ == '__main__':
 
     for i in range(1,4):
         print(i)
-        exp = daphne(['desugar-hoppl', '-i', '../../HW5/programs/{}.daphne'.format(i)])
+        exp = daphne(['desugar-hoppl', '-i', '../HW5/programs/{}.daphne'.format(i)])
         print('\n\n\nSample of prior of program {}:'.format(i))
         print(evaluate(exp))        

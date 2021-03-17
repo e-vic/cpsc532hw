@@ -2,13 +2,16 @@
   (:refer-clojure :exclude [compile])
   (:require [clojure.string :as str]
             [clojure.edn :as edn]
+            [clojure.walk :as walk]
             [clojure.tools.cli :refer [parse-opts]]
             [clojure.java.io :as io]
             [clojure.data.json :as json]
+            [daphne.address-transformation :refer [address-trafo]]
             [daphne.gensym :refer [*my-gensym*]]
             [daphne.hy :refer [foppl->python]]
             [daphne.desugar :refer [desugar]]
             [daphne.desugar-datastructures :refer [desugar-datastructures]]
+            [daphne.desugar-hoppl :refer [desugar-hoppl-global]]
             [daphne.metropolis-within-gibbs :refer [metropolis-within-gibbs]]
             [daphne.hmc :refer [hmc]]
             [daphne.core :refer [program->graph]])
@@ -38,7 +41,7 @@
   (str "The following errors occurred while parsing your command:\n\n"
        (str/join \newline errors)))
 
-(def actions #{"graph" "desugar" "python-class" "infer"})
+(def actions #{"graph" "desugar" "desugar-hoppl" "python-class" "infer"})
 
 (def cli-options
   ;; An option with a required argument
@@ -149,8 +152,17 @@
       (case action
         :graph (-> code program->graph desugar-datastructures-graph)
         :desugar (-> code desugar desugar-datastructures)
+        :desugar-hoppl (list
+                       'fn ['alpha]
+                       (-> code desugar-hoppl-global (address-trafo 'alpha)))
         :python-class (foppl->python code)
         :infer (infer code opts)))))
+
+(defn add-string-encoding [x]
+  (cond ;(symbol? x)  (str "'" (name x))
+        ;(keyword? x) (str ":" (name x))
+        (string? x)  (str "\"" x "\"")
+        :else        x))
 
 (defn -main [& args]
   (let [{:keys [action options exit-message ok?]} (validate-args args)]
@@ -160,6 +172,7 @@
                        (slurp (or (:input-file options) *in*)))
             code (read-all-exps source)
             out' (execute action code options)
+            out' (walk/postwalk add-string-encoding out')
             out (if (not (string? out'))
                   (case (:format options)
                     :json (json/json-str out')
