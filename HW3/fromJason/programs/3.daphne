@@ -1,16 +1,21 @@
-(defn hmm-step [t states data trans-dists likes]
-  (let [z (sample (get trans-dists
-                       (last states)))]
-    (observe (get likes z)
-             (get data t))
-    (append states z)))
-(let [data        [0.9 0.8 0.7 0.0 -0.025 -5.0 -2.0 -0.1
-            0.0 0.13 0.45 6 0.2 0.3 -1 -1]
-      trans-dists [(discrete [0.10 0.50 0.40])
-                   (discrete [0.20 0.20 0.60])
-                   (discrete [0.15 0.15 0.70])]
-      likes       [(normal -1.0 1.0)
-             (normal 1.0 1.0)
-             (normal 0.0 1.0)]
-      states      [(sample (discrete [0.33 0.33 0.34]))]]
-  (loop 16 states hmm-step data trans-dists likes))
+(defn reduce [f x values]
+               (if (empty? values)
+                  x
+                  (reduce f (f x (first values)) (rest values))))
+
+(let [observations [0.9 0.8 0.7 0.0 -0.025 -5.0 -2.0 -0.1 0.0 0.13 0.45 6 0.2 0.3 -1 -1]
+      init-dist (discrete [1.0 1.0 1.0])
+      trans-dists {0 (discrete [0.1 0.5 0.4])
+                   1 (discrete [0.2 0.2 0.6])
+                   2 (discrete [0.15 0.15 0.7])}
+      obs-dists {0 (normal -1 1)
+                 1 (normal 1 1)
+                 2 (normal 0 1)}]
+      (reduce
+        (fn [states obs]
+          (let [state (sample (get trans-dists
+                                   (peek states)))]
+            (observe (get obs-dists state) obs)
+            (conj states state)))
+        [(sample init-dist)]
+        observations))

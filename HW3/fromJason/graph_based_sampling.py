@@ -206,7 +206,8 @@ def bbvi_eval(node,expr,sigma,trace,t):
             # sigma['opt'][node] = torch.optim.SGD(sigma['q'][node].Parameters(), lr=1/(t+10))
         
         c = sigma['q'][node].sample()
-        lp = -sigma['q'][node].log_prob(c)
+        lp = 1*sigma['q'][node].log_prob(c)
+        # print('lp is: ',str(lp))
         lp.backward()
         # print('what is v in dist_obj.params? ',str([v for v in sigma['q'][node].Parameters()]))
         # print('gradient of log prob ', str([v.grad for v in sigma['q'][node].Parameters()]))
@@ -214,8 +215,12 @@ def bbvi_eval(node,expr,sigma,trace,t):
         trace[node] = c
         # print('gradients in eval are: ',str([v.grad for v in sigma['q'][node].Parameters()]))
         grads = [v.grad for v in sigma['q'][node].Parameters()]
-        sigma['G'][node] = torch.tensor([*grads])
-        sigma['logW'] = sigma['logW'] + (dist_obj.log_prob(c) + lp)
+        # print('gradient ',str(grads))
+        # sigma['G'][node] = torch.tensor([*grads])
+        sigma['G'][node] = [*grads]
+        # print('first part: ',str(dist_obj.log_prob(c)))
+        sigma['logW'] = sigma['logW'] + (dist_obj.log_prob(c) - lp)
+        # print('logW: ',str(sigma['logW']))
 
         return c, sigma
 
@@ -289,6 +294,7 @@ def bbvi(T,L,graph):
         logWl = []
         sigma['opt'] = {}
         for l in range(L):
+            sigma['logW'] = 0
             # Gl[l] = {}
             for node in sorted_nodes:
                 # print('node is: ',str(node))
@@ -311,22 +317,22 @@ def bbvi(T,L,graph):
         # NEED TO UPDATE PARAMETER GRADIENTS WITH THE ONES FROM ELBO GRAD
 
         # USE THIS FOR BHAT
-        g_hat = elbo_grad(Gl,logWl)
-        # print('g_hat is: ',str(g_hat))
-        for node in sigma['opt'].keys():
-            p = 0
-            for param in sigma['q'][node].Parameters():
-                param.grad = g_hat[node][p] # update the gradients to be g_hat
-                p = p + 1
-            sigma['opt'][node].step()
-            for param in sigma['q'][node].Parameters():
-                param.grad = 0*param.grad # need to zero the gradients since zero_grad isn't working with custom gradients
-                p = p + 1
+        # g_hat = elbo_grad(Gl,logWl)
+        # # print('g_hat is: ',str(g_hat))
+        # for node in sigma['opt'].keys():
+        #     p = 0
+        #     for param in sigma['q'][node].Parameters():
+        #         param.grad = g_hat[node][p] # update the gradients to be g_hat
+        #         p = p + 1
+        #     sigma['opt'][node].step()
+        #     for param in sigma['q'][node].Parameters():
+        #         param.grad = 0*param.grad # need to zero the gradients since zero_grad isn't working with custom gradients
+        #         p = p + 1
 
         # USE THIS FOR NO BHAT
-        # for node in sigma['opt'].keys():
-        #     sigma['opt'][node].step()
-        #     sigma['opt'][node].zero_grad()
+        for node in sigma['opt'].keys():
+            sigma['opt'][node].step()
+            sigma['opt'][node].zero_grad()
 
         # print('does q change? ',str(sigma['q']))
         r[t] = [*rl]
@@ -396,9 +402,9 @@ if __name__ == '__main__':
     # prog_name = 'MHinGibbs'
     prog_name = 'BBVI'
     S = 50 # number of samples
-    L = 400 # number of gradient steps
+    L = 300 # number of gradient steps
 
-    for i in range(1,2):
+    for i in range(3,4):
         print('Program ',str(i))
         graph = daphne(['graph','-i','../HW3/fromJason/programs/hw4_{}.daphne'.format(i)])
         # print('graph is: ',str(graph))
@@ -409,6 +415,7 @@ if __name__ == '__main__':
         elif prog_name == 'BBVI':
             full_output = bbvi(L,S,graph)
             samples = full_output[0]
+            logW = full_output[1]
             Q = full_output[2]
             num_outputs = full_output[-1]
             # print('unsorted samples are: ',str(samples))
@@ -456,6 +463,12 @@ if __name__ == '__main__':
         print('expectation after ',str(S),' samples is: ',str(expectation))
         print('variance after ',str(S),' samples is: ',str(variance))
         print(str(L),' gradient steps were used')
+
+        #LogW plot
+        figW,axW = plt.subplots()
+        axW.plot([logW[k][-1] for k in range(L)])
+        axW.set_ylabel('logW')
+        plt.show()
 
         # histograms
         try:
@@ -547,6 +560,7 @@ if __name__ == '__main__':
                 fig, ax = plt.subplots()
                 ax.plot([float(val) for val in samples])
                 plt.show()
+
 
         # if type(samples[0]) is list:
         #     expectation = [None]*len(samples[0])

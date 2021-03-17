@@ -44,10 +44,8 @@ def is_tol(a, b):
 def run_prob_test(stream, truth, num_samples):
     samples = []
     for i in range(int(num_samples)):
-        sample, _ = next(stream)
-        samples.append(sample)
-        #samples.append(next(stream))
-
+        samples.append(next(stream))
+    
     distrs = {
             'normal' : norm,
             'beta' : beta,
@@ -57,6 +55,7 @@ def run_prob_test(stream, truth, num_samples):
     
     print(truth)
     truth_dist = distrs[truth[0]](*truth[1:])
+
     d,p_val = kstest(np.array(samples), truth_dist.cdf)
     
     return p_val
