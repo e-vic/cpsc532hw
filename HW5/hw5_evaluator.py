@@ -7,6 +7,11 @@ from hw5_primitives import funcprimitives
 from daphne import daphne
 from tests import is_tol, run_prob_test,load_truth
 import copy
+import numpy as np
+import matplotlib.pyplot as plt
+import sys
+
+sys.setrecursionlimit(5000)
 
 class Env(dict):
     "An environment: a dict of {'var': val} pairs, with an outer Env."
@@ -113,12 +118,24 @@ def evaluate_helper(x, env):
         return proc(*vals)
 
 
-def evaluate(exp, env=None): #TODO: add sigma, or something
-
+def evaluate(exp, env=None, iters=1): #TODO: add sigma, or something
     if env is None:
         env = standard_env()
-        
-    return  evaluate_helper(exp, env)("")
+    
+    out = evaluate_helper(exp, env)("")
+    try:
+        L = len(out)
+    except TypeError:
+        L = 1
+    outputs = [[None]*L]*iters
+    outputs[0] = out
+
+    for i in range(1,iters):
+        out = evaluate_helper(exp, env)("")
+        outputs[i] = out
+    
+
+    return outputs, L
 
 def get_stream(exp):
     while True:
@@ -152,8 +169,6 @@ def run_deterministic_tests():
         
     print('All deterministic tests passed')
     print("skipping test 12 since the output is correct, it's just in the wrong order because of the conj vs. cons thing that Mia pointed out. ")
-    
-
 
 def run_probabilistic_tests():
     
@@ -173,12 +188,58 @@ def run_probabilistic_tests():
     
     print('All probabilistic tests passed')
 
-run_deterministic_tests()
-run_probabilistic_tests()
+# run_deterministic_tests()
+# run_probabilistic_tests()
 
-for i in range(1,4):
+def get_cols(sample_length):
+    cols = 2
+    check = True
+    while check:
+        rows = np.ceil(sample_length/cols)
+        if rows - cols >0:
+            cols += 1
+        else:
+            check = False
+    return cols
+
+N = 1000
+
+for i in range(2,4):
     print("Test: ",i)
     exp = daphne(['desugar-hoppl', '-i', '../HW5/programs/{}.daphne'.format(i)])
-    print('\n\n\nSample of prior of program {}:'.format(i))
-    print(evaluate(exp))     
+    output = evaluate(exp,iters=N)
+    samples = output[0]
+    # print("samples ",samples)
+    sample_length = output[1]
+
+    #plotting histograms
+    if sample_length == 1:
+        fig, ax = plt.subplots()
+        ax.hist([float(val) for val in samples])
+        plt.show()
+    else:
+        figcols = get_cols(sample_length)
+        figrows = int(np.ceil(sample_length/figcols))
+        fig = plt.figure(figsize=(2*figcols,2*figrows))
+        grid = plt.GridSpec(figrows, figcols, figure=fig, hspace=0.35, wspace=0.2)
+
+        axes = {}
+        k = 0
+        for n in range(figrows):
+            for m in range(figcols):
+                axes[str(n)+str(m)] = fig.add_subplot(grid[n,m])
+                k = k+1
+                if k >= sample_length:
+                    break
+        k = 0
+        for n in range(figrows):
+            for m in range(figcols):
+                axes[str(n)+str(m)].hist([float(val[k]) for val in samples])
+                k = k+1
+                if k >= sample_length:
+                    break
+
+        plt.show()
+
+
 print("and that's a wrap!")
