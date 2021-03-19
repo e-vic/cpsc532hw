@@ -43,6 +43,9 @@ def last(v):
 def append(v, c):
     return torch.cat((v, c.unsqueeze(dim=0)), dim=0)
 
+# def conj(v, c):
+#     return torch.cat((c.unsqueeze(dim=0), v), dim=0)
+
 def hashmap(*v):
     hm = {}
     i = 0

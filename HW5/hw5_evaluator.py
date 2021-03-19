@@ -10,8 +10,9 @@ import copy
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
+import time
 
-sys.setrecursionlimit(5000)
+sys.setrecursionlimit(15000)
 
 class Env(dict):
     "An environment: a dict of {'var': val} pairs, with an outer Env."
@@ -188,8 +189,6 @@ def run_probabilistic_tests():
     
     print('All probabilistic tests passed')
 
-# run_deterministic_tests()
-# run_probabilistic_tests()
 
 def get_cols(sample_length):
     cols = 2
@@ -202,15 +201,38 @@ def get_cols(sample_length):
             check = False
     return cols
 
+print("test cases")
+run_deterministic_tests()
+run_probabilistic_tests()
+
 N = 1000
 
-for i in range(2,4):
+for i in range(1,4):
     print("Test: ",i)
     exp = daphne(['desugar-hoppl', '-i', '../HW5/programs/{}.daphne'.format(i)])
+    
+    tic = time.perf_counter()
     output = evaluate(exp,iters=N)
+    toc = time.perf_counter()
+    print('elapsed time is: ',str(toc-tic))
+
     samples = output[0]
     # print("samples ",samples)
     sample_length = output[1]
+
+    # mean and variance
+    if sample_length == 1:
+        print("mean is: ", np.mean(samples))
+        print("variance is: ", np.var(samples))
+    else:
+        expectation = [None]*sample_length
+        variance = [None]*sample_length
+        for k in range(sample_length):
+            variance[k] =  np.var([samples[i][k] for i in range(N)])
+            expectation[k] =  np.mean([samples[i][k] for i in range(N)])
+
+        print("mean is: ",expectation)
+        print("variance is: ",variance)
 
     #plotting histograms
     if sample_length == 1:
