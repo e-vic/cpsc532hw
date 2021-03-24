@@ -137,7 +137,7 @@ def run_deterministic_tests(use_cache=True, cache='programs/tests/'):
             with open(cache + 'deterministic/test_{}.json'.format(i),'r') as f:
                 exp = json.load(f)
         else:
-            exp = daphne(['desugar-hoppl-cps', '-i', '../../HW6/programs/tests/deterministic/test_{}.daphne'.format(i)])
+            exp = daphne(['desugar-hoppl-cps', '-i', '../HW6/programs/tests/deterministic/test_{}.daphne'.format(i)])
             with open(cache + 'deterministic/test_{}.json'.format(i),'w') as f:
                 json.dump(exp, f)
         truth = load_truth('programs/tests/deterministic/test_{}.truth'.format(i))
@@ -155,7 +155,7 @@ def run_deterministic_tests(use_cache=True, cache='programs/tests/'):
             with open(cache + 'hoppl-deterministic/test_{}.json'.format(i),'r') as f:
                 exp = json.load(f)
         else:
-            exp = daphne(['desugar-hoppl-cps', '-i', '../../HW6/programs/tests/hoppl-deterministic/test_{}.daphne'.format(i)])
+            exp = daphne(['desugar-hoppl-cps', '-i', '../HW6/programs/tests/hoppl-deterministic/test_{}.daphne'.format(i)])
             with open(cache + 'hoppl-deterministic/test_{}.json'.format(i),'w') as f:
                 json.dump(exp, f)
 
@@ -183,7 +183,7 @@ def run_probabilistic_tests(use_cache=True, cache='programs/tests/'):
             with open(cache + 'probabilistic/test_{}.json'.format(i),'r') as f:
                 exp = json.load(f)
         else:
-            exp = daphne(['desugar-hoppl-cps', '-i', '../../HW6/programs/tests/probabilistic/test_{}.daphne'.format(i)])
+            exp = daphne(['desugar-hoppl-cps', '-i', '../HW6/programs/tests/probabilistic/test_{}.daphne'.format(i)])
             with open(cache + 'probabilistic/test_{}.json'.format(i),'w') as f:
                 json.dump(exp, f)
         truth = load_truth('programs/tests/probabilistic/test_{}.truth'.format(i))
@@ -200,24 +200,27 @@ def run_probabilistic_tests(use_cache=True, cache='programs/tests/'):
 
 if __name__ == '__main__':
     # run the tests, if you wish:  
-   # run_deterministic_tests(use_cache=False)
-   # run_probabilistic_tests(use_cache=False)
+    # run_deterministic_tests(use_cache=False)
+    # run_probabilistic_tests(use_cache=False)
 
     #load your precompiled json's here:
-    with open('programs/{}.json'.format(4),'r') as f:
-        exp = json.load(f)
+    # with open('programs/{}.json'.format(4),'r') as f:
+    #     exp = json.load(f)
+    for i in range(4):
+        exp = daphne(['desugar-hoppl-cps', '-i', '../HW5/programs/{}.daphne'.format(i)])
+        print(exp)
 
-    #this should run a sample from the prior
-    print(sample_from_prior(exp))
+        #this should run a sample from the prior
+        print(sample_from_prior(exp))
 
 
-    #you can see how the CPS works here, you define a continuation for the last call:
-    output = lambda x: x #The output is the identity
+        #you can see how the CPS works here, you define a continuation for the last call:
+        output = lambda x: x #The output is the identity
 
-    res =  evaluate(exp, env=None)('addr_start', output) #set up the initial call, every evaluate returns a continuation, a set of arguments, and a map sigma at every procedure call, every sample, and every observe
-    cont, args, sigma = res
-    print(cont, args, sigma)
-    #you can keep calling this to run the program forward:
-    res = cont(*args)
-    #you know the program is done, when "res" is not a tuple, but a simple data object
+        res =  evaluate(exp, env=None)('addr_start', output) #set up the initial call, every evaluate returns a continuation, a set of arguments, and a map sigma at every procedure call, every sample, and every observe
+        cont, args, sigma = res
+        print(cont, args, sigma)
+        #you can keep calling this to run the program forward:
+        res = cont(*args)
+        #you know the program is done, when "res" is not a tuple, but a simple data object
 
