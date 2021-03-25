@@ -31,7 +31,11 @@ def resample_particles(particles, log_weights):
     # buildl index map with categorial distribution
     # logsumexp of log weights
 
-    logZ = torch.logsumexp(torch.tensor(log_weights),0)/len(particles)
+    # logZ = torch.logsumexp(torch.tensor(log_weights),0)/len(particles) # wrong - doesn't handle division/taking log properly
+    
+    new_weights = torch.logsumexp(torch.tensor(log_weights),0)
+    logL = torch.log(torch.tensor(len(log_weights), dtype=float))
+    logZ = new_weights - logL
 
     return logZ, new_particles
 
@@ -94,12 +98,12 @@ def SMC(n_particles, exp):
 
 if __name__ == '__main__':
     #for i in range(1,5):
-    for i in range(1,2):
+    for i in range(3,4):
         print("\n\n Program ",str(i))
         with open('programs/{}.json'.format(i),'r') as f:
             exp = json.load(f)
-        # n_p = [1, 10, 100, 1000, 10000, 100000]
-        n_p = [1,10,100,1000,10000]
+        n_p = [1, 10, 100, 1000, 10000, 100000]
+        # n_p = [1,10,100,1000,10000]
 
         fig = plt.figure(figsize=(10,6))
         grid = plt.GridSpec(2, 3, figure=fig, hspace=0.35, wspace=0.35)
@@ -162,5 +166,6 @@ if __name__ == '__main__':
             
             axes[str(j)].set_title( "{} particles".format(n) )
             j=j+1
-        plt.show()
-        fig.savefig('program'+str(i)+'_hist.png')
+            fig.savefig('program'+str(i)+'_hist.png')
+        # plt.show()
+        
