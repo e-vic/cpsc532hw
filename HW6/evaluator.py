@@ -82,9 +82,12 @@ def evaluate(exp, env=None):
             d = evaluate(args[1], env=env)
             c = evaluate(args[2], env=env)
             k = evaluate(args[3], env=env)
-            sigma = {'type' : 'observe'
+            sigma = {'type' : 'observe',
+                     'logW' : d.log_prob(c),
+                     'alpha' : alpha
                      #TODO: put any other stuff you need here
                      }
+            # print('logW: ',sigma['logW'])
             return k, [c], sigma
         elif op == 'if':
             cond,conseq,alt = args
@@ -98,7 +101,8 @@ def evaluate(exp, env=None):
         else: #func eval
             proc = evaluate(op, env=env)
             values = [evaluate(e, env=env) for e in args]
-            sigma = {'type' : 'proc'
+            sigma = {'type' : 'proc',
+                     'message': 'hi'
                      #TODO: put any other stuff you need here
                      }
             return proc, values, sigma
@@ -119,10 +123,13 @@ def sample_from_prior(exp):
     #init calc:
     output = lambda x: x #The output is the identity
     res =  evaluate(exp, env=None)('addr_start', output) #set up the initial call
+    # print(res)
     while type(res) is tuple: #if there are continuations, the res will be a tuple
         cont, args, sigma = res #res is contininuation, arguments, and a map, which you can use to pass back some additional stuff
         res = cont(*args) #call the continuation
+        print(sigma)
     #when res is not a tuple, the calculation has finished
+    # print(res)
     return res
 
 def get_stream(exp):
@@ -206,9 +213,17 @@ if __name__ == '__main__':
     #load your precompiled json's here:
     # with open('programs/{}.json'.format(4),'r') as f:
     #     exp = json.load(f)
-    for i in range(4):
-        exp = daphne(['desugar-hoppl-cps', '-i', '../HW5/programs/{}.daphne'.format(i)])
-        print(exp)
+    use_cache = True
+    for i in range(1,2):
+        if use_cache:
+            with open('programs/{}.json'.format(i),'r') as f:
+                exp = json.load(f)
+        else:
+            exp = daphne(['desugar-hoppl-cps', '-i', '../HW6/programs/{}.daphne'.format(i)])
+            with open('programs/{}.json'.format(i),'w') as f:
+                json.dump(exp, f)
+        exp = daphne(['desugar-hoppl-cps', '-i', '../HW6/programs/{}.daphne'.format(i)])
+        # print(exp)
 
         #this should run a sample from the prior
         print(sample_from_prior(exp))

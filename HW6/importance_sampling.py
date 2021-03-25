@@ -11,22 +11,34 @@ def get_IS_sample(exp):
     output = lambda x: x
     res =  evaluate(exp, env=None)('addr_start', output)
     #TODO : hint, "get_sample_from_prior" as a basis for your solution
+    output = lambda x: x #The output is the identity
+    res =  evaluate(exp, env=None)('addr_start', output) #set up the initial call
+    # print("sigma",res[2])
+    logW = 0
+    
+    while type(res) is tuple: #if there are continuations, the res will be a tuple
+        cont, args, sigma = res #res is contininuation, arguments, and a map, which you can use to pass back some additional stuff
+        res = cont(*args) #call the continuation
+        if sigma['type'] == 'observe':
+            logW = logW + sigma['logW']
+
     return logW, res
 
 if __name__ == '__main__':
 
-    for i in range(1,5):
+    for i in range(2,5):
         with open('programs/{}.json'.format(i),'r') as f:
             exp = json.load(f)
-        print('\n\n\nSample of prior of program {}:'.format(i))
+        print('\n Sample of prior of program {}:'.format(i))
         log_weights = []
         values = []
-        for i in range(10000):
+        for i in range(100):
             logW, sample = get_IS_sample(exp)
             log_weights.append(logW)
             values.append(sample)
 
         log_weights = torch.tensor(log_weights)
+        # print('log weights: ',log_weights)
 
         values = torch.stack(values)
         values = values.reshape((values.shape[0],values.size().numel()//values.shape[0]))
